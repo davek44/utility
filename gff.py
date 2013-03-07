@@ -394,36 +394,37 @@ def utrs(gtf_file, output_file=None):
     for gid in genes:
         g = genes[gid]
         
-        # match up exons and CDS
-        c = 0
-        for e in range(len(g.exons)):
-            # left initial
-            if g.exons[e].end < g.cds[c].start:
-                utr_label = (g.strand == '+')*'5\'UTR' + (g.strand == '-')*'3\'UTR'
-                cols = [g.chrom, source, utr_label, str(g.exons[e].start), str(g.exons[e].end), '.', g.strand, '.', kv_gtf(g.kv)]
-                print >> out, '\t'.join(cols)
-
-            # right initial
-            elif g.cds[c].end < g.exons[e].start:
-                utr_label = (g.strand == '+')*'3\'UTR' + (g.strand == '-')*'5\'UTR'
-                cols = [g.chrom, source, utr_label, str(g.exons[e].start), str(g.exons[e].end), '.', g.strand, '.', kv_gtf(g.kv)]
-                print >> out, '\t'.join(cols)
-
-            # overlap
-            else:
-                # left overlap
-                if g.exons[e].start < g.cds[c].start:
+        if len(g.cds) > 0:
+            # match up exons and CDS
+            c = 0
+            for e in range(len(g.exons)):
+                # left initial
+                if g.exons[e].end < g.cds[c].start:
                     utr_label = (g.strand == '+')*'5\'UTR' + (g.strand == '-')*'3\'UTR'
-                    cols = [g.chrom, source, utr_label, str(g.exons[e].start), str(g.cds[c].start-1), '.', g.strand, '.', kv_gtf(g.kv)]
+                    cols = [g.chrom, source, utr_label, str(g.exons[e].start), str(g.exons[e].end), '.', g.strand, '.', kv_gtf(g.kv)]
                     print >> out, '\t'.join(cols)
 
-                # right overlap
-                if g.cds[c].end < g.exons[e].end:
+                # right initial
+                elif g.cds[c].end < g.exons[e].start:
                     utr_label = (g.strand == '+')*'3\'UTR' + (g.strand == '-')*'5\'UTR'
-                    cols = [g.chrom, source, utr_label, str(g.cds[c].end+1), str(g.exons[e].end), '.', g.strand, '.', kv_gtf(g.kv)]
+                    cols = [g.chrom, source, utr_label, str(g.exons[e].start), str(g.exons[e].end), '.', g.strand, '.', kv_gtf(g.kv)]
                     print >> out, '\t'.join(cols)
 
-                c = min(c+1,len(g.cds)-1)
+                # overlap
+                else:
+                    # left overlap
+                    if g.exons[e].start < g.cds[c].start:
+                        utr_label = (g.strand == '+')*'5\'UTR' + (g.strand == '-')*'3\'UTR'
+                        cols = [g.chrom, source, utr_label, str(g.exons[e].start), str(g.cds[c].start-1), '.', g.strand, '.', kv_gtf(g.kv)]
+                        print >> out, '\t'.join(cols)
+
+                    # right overlap
+                    if g.cds[c].end < g.exons[e].end:
+                        utr_label = (g.strand == '+')*'3\'UTR' + (g.strand == '-')*'5\'UTR'
+                        cols = [g.chrom, source, utr_label, str(g.cds[c].end+1), str(g.exons[e].end), '.', g.strand, '.', kv_gtf(g.kv)]
+                        print >> out, '\t'.join(cols)
+
+                    c = min(c+1,len(g.cds)-1)
 
     out.close()
 
