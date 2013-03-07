@@ -149,8 +149,12 @@ def introns(gtf_file, output_file=None):
         g = genes[gid]
 
         for i in range(1,len(g.exons)):
-            cols = [g.chrom, source, 'intron', str(g.exons[i-1].end+1), str(g.exons[i].start-1), '.', g.strand, '.', kv_gtf(g.kv)]
-            print >> out, '\t'.join(cols)
+            istart = g.exons[i-1].end+1
+            iend = g.exons[i].start-1
+
+            if istart <= iend:
+                cols = [g.chrom, source, 'intron', str(istart), str(iend), '.', g.strand, '.', kv_gtf(g.kv)]
+                print >> out, '\t'.join(cols)
 
     out.close()
 
@@ -393,7 +397,6 @@ def utrs(gtf_file, output_file=None):
 
     for gid in genes:
         g = genes[gid]
-        
         if len(g.cds) > 0:
             # match up exons and CDS
             c = 0
