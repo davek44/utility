@@ -3,10 +3,10 @@ from optparse import OptionParser
 import cufflinks, gff
 
 ################################################################################
-# gtf_filter_expr.py
+# most_expr_isoform.py
 #
-# Filter a gtf file to only leave genes that are expressed over a specified
-# threshold in a specified tissue/cell type.
+# Filter a GTF file to include only the most expressed isoform of each gene
+# locus.
 ################################################################################
 
 
@@ -34,14 +34,10 @@ def main():
     # map gene_id's to max expression isoform
     gene_max_iso = {}
     for gid in g2t:
-        isoforms = g2t[gid]
-
-        max_expr_tid = isoforms[0]
-        max_expr = sum([math.log(options.pseudocount+e,2) for e in cuff.gene_expr(isoforms[0])])
-
-        for tid in isoforms[1:]:
+        max_expr_tid = None
+        for tid in g2t[gid]:
             expr_mean = sum([math.log(options.pseudocount+e,2) for e in cuff.gene_expr(tid)])
-            if expr > max_expr:
+            if max_expr_tid == None or expr > max_expr:
                 max_expr = expr
                 max_expr_tid = tid
 
