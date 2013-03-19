@@ -38,8 +38,8 @@ def main():
         max_expr_tid = None
         for tid in g2t[gid]:
             expr_mean = sum([math.log(options.pseudocount+e,2) for e in cuff.gene_expr(tid)])
-            if max_expr_tid == None or expr > max_expr:
-                max_expr = expr
+            if max_expr_tid == None or expr_mean > max_expr:
+                max_expr = expr_mean
                 max_expr_tid = tid
 
         gene_max_iso[gid] = max_expr_tid
