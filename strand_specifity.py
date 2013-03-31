@@ -17,7 +17,7 @@ import pysam
 def main():
     usage = 'usage: %prog [options] <bam> <junctions.bed>'
     parser = OptionParser(usage)
-    #parser.add_option()
+    parser.add_option('-s', dest='single', default=False, action='store_true', help='Single-stranded [Default: %default]')
     (options,args) = parser.parse_args()
 
     if len(args) != 2:
@@ -36,7 +36,7 @@ def main():
     first = 0
     second = 0
     for aligned_read in pysam.Samfile('fwd.bam'):
-        if aligned_read.is_proper_pair:
+        if options.single or aligned_read.is_proper_pair:
             if aligned_read.is_read1:
                 first += 1
             else:
