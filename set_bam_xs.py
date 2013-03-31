@@ -28,7 +28,7 @@ def main():
         b, e = os.path.splitext(bam_in_file)
         options.bam_out_file = b+'_xs'+e
 
-    bam_in = pysam.Samfile(bam_file, 'rb')
+    bam_in = pysam.Samfile(bam_in_file, 'rb')
     bam_out = pysam.Samfile(options.bam_out_file, 'wb', template=bam_in)
 
     for aligned_read in bam_in:
@@ -39,19 +39,19 @@ def main():
         if aligned_read.is_paired:
             if aligned_read.is_read1:
                 if aligned_read.is_reverse:
-                    aligned_read.tags = align_read.tags + [('XS','+')]
+                    aligned_read.tags = aligned_read.tags + [('XS','+')]
                 else:
-                    aligned_read.tags = align_read.tags + [('XS','-')]
+                    aligned_read.tags = aligned_read.tags + [('XS','-')]
             else:
                 if aligned_read.is_reverse:
-                    aligned_read.tags = align_read.tags + [('XS','-')]
+                    aligned_read.tags = aligned_read.tags + [('XS','-')]
                 else:
-                    aligned_read.tags = align_read.tags + [('XS','+')]
+                    aligned_read.tags = aligned_read.tags + [('XS','+')]
         else:
             if aligned_read.is_reverse:
-                aligned_read.tags = align_read.tags + [('XS','+')]
+                aligned_read.tags = aligned_read.tags + [('XS','+')]
             else:
-                aligned_read.tags = align_read.tags + [('XS','-')]
+                aligned_read.tags = aligned_read.tags + [('XS','-')]
 
         # output
         bam_out.write(aligned_read)
