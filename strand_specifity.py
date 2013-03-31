@@ -29,21 +29,37 @@ def main():
     # filter junctions for forward only
     subprocess.call('awk \'$6 == "+"\' %s > junctions_fwd.bed' % juncs_bed_file, shell=True)
 
-    # intersect BAM with forward junctions
-    subprocess.call('intersectBed -s -abam %s -b junctions_fwd.bed > fwd.bam' % bam_file, shell=True)
+    if options.single:
+        subprocess.call('intersectBed -abam %s -b junctions_fwd.bed > fwd.bam' % bam_file, shell=True)
 
-    # count first/second reads
-    first = 0
-    second = 0
-    for aligned_read in pysam.Samfile('fwd.bam'):
-        if options.single or aligned_read.is_proper_pair:
-            if aligned_read.is_read1:
-                first += 1
+        # count forward/reverse reads
+        forward = 0
+        reverse = 0
+        for aligned_read in pysam.Samfile('fwd.bam'):
+            if aligned_read.is_reverse:
+                reverse += 1
             else:
-                second += 1
+                forward += 1
 
-    print 'Read1\'s aligning + and intersecting + junctions: %9d' % first
-    print 'Read2\'s aligning + and intersecting + junctions: %9d' % second
+        print 'Read\'s aligning + and intersecting + junctions: %9d' % forward
+        print 'Read\'s aligning - and intersecting + junctions: %9d' % reverse
+
+    else:
+        # intersect BAM with forward junctions
+        subprocess.call('intersectBed -s -abam %s -b junctions_fwd.bed > fwd.bam' % bam_file, shell=True)
+
+        # count first/second reads
+        first = 0
+        second = 0
+        for aligned_read in pysam.Samfile('fwd.bam'):
+            if aligned_read.is_proper_pair:
+                if aligned_read.is_read1:
+                    first += 1
+                else:
+                    second += 1
+
+        print 'Read1\'s aligning + and intersecting + junctions: %9d' % first
+        print 'Read2\'s aligning + and intersecting + junctions: %9d' % second
 
     os.remove('junctions_fwd.bed')
     os.remove('fwd.bam')
