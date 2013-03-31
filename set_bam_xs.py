@@ -49,9 +49,9 @@ def main():
                     aligned_read.tags = aligned_read.tags + [('XS','+')]
         else:
             if aligned_read.is_reverse:
-                aligned_read.tags = aligned_read.tags + [('XS','+')]
-            else:
                 aligned_read.tags = aligned_read.tags + [('XS','-')]
+            else:
+                aligned_read.tags = aligned_read.tags + [('XS','+')]
 
         # output
         bam_out.write(aligned_read)
