@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from optparse import OptionParser
+import os, subprocess
 import pysam
 
 ################################################################################
