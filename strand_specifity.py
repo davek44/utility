@@ -45,7 +45,7 @@ def main():
     print 'Read1\'s aligning + and intersecting + junctions: %9d' % first
     print 'Read2\'s aligning + and intersecting + junctions: %9d' % second
 
-    os.remove('junctions_fwd.bed)
+    os.remove('junctions_fwd.bed')
     os.remove('fwd.bam')
 
 
