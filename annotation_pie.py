@@ -72,7 +72,7 @@ def main():
     intergenic_reads_norm = intergenic_reads / float(intergenic_length)
 
     # print counts to file
-    counts_out = open('counts.txt','w')
+    counts_out = open('annotation_counts.txt','w')
     print >> counts_out, 'CDS        %10d %8d %9.2e' % (cds_length, cds_reads, cds_reads_norm)
     print >> counts_out, "5'UTR      %10d %8d %9.2e" % (utr5_length, utr5_reads, utr5_reads_norm)
     print >> counts_out, "3'UTR      %10d %8d %9.2e" % (utr3_length, utr3_reads, utr3_reads_norm)
