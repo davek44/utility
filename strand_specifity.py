@@ -53,10 +53,15 @@ def main():
         second = 0
         for aligned_read in pysam.Samfile('fwd.bam'):
             if aligned_read.is_proper_pair:
-                if aligned_read.is_read1:
-                    first += 1
-                else:
-                    second += 1
+                spliced = False
+                for (code,size) in aligned_read.cigar:
+                    if code == 3:
+                        spliced = True
+                if spliced:
+                    if aligned_read.is_read1:
+                        first += 1
+                    else:
+                        second += 1
 
         print 'Read1\'s aligning + and intersecting + junctions: %9d' % first
         print 'Read2\'s aligning + and intersecting + junctions: %9d' % second
