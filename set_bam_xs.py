@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from optparse import OptionParser
+import os
 import pysam
 
 ################################################################################
@@ -32,30 +33,57 @@ def main():
     bam_out = pysam.Samfile(options.bam_out_file, 'wb', template=bam_in)
 
     for aligned_read in bam_in:
-        # remove existing XS tag
-        rm_xs(aligned_read)
-
-        # set XS tag
+        # determine XS
         if aligned_read.is_paired:
             if aligned_read.is_read1:
                 if aligned_read.is_reverse:
-                    aligned_read.tags = aligned_read.tags + [('XS','+')]
+                    new_xs = '+'
                 else:
-                    aligned_read.tags = aligned_read.tags + [('XS','-')]
+                    new_xs = '-'
             else:
                 if aligned_read.is_reverse:
-                    aligned_read.tags = aligned_read.tags + [('XS','-')]
+                    new_xs = '-'
                 else:
-                    aligned_read.tags = aligned_read.tags + [('XS','+')]
+                    new_xs = '+'
         else:
             if aligned_read.is_reverse:
-                aligned_read.tags = aligned_read.tags + [('XS','-')]
+                new_xs = '-'
             else:
-                aligned_read.tags = aligned_read.tags + [('XS','+')]
+                new_xs = '+'
 
-        # output
-        bam_out.write(aligned_read)
+        # toss it if the splicing strand differs
+        if not splice_disagree(aligned_read, new_xs):
+            # remove existing XS tag
+            rm_xs(aligned_read)
+
+            # set XS tag
+            aligned_read.tags = aligned_read.tags + [('XS',new_xs)]
+
+            # fix CP tag
+            fix_cp(aligned_read)
+
+            # output
+            bam_out.write(aligned_read)
+
+    bam_in.close()
+    bam_out.close()
     
+
+################################################################################
+# fix_cp
+#
+# The CP tag is read as a float rather than int, and then improperly handled
+# by the samtools library.
+################################################################################
+def fix_cp(aligned_read):
+    cp_i = 0
+    while cp_i < len(aligned_read.tags) and aligned_read.tags[cp_i][0] != 'CP':
+        cp_i += 1
+
+    if cp_i < len(aligned_read.tags):
+        cp_int = int(aligned_read.tags[cp_i][1])
+        aligned_read.tags = aligned_read.tags[:cp_i] + aligned_read.tags[cp_i+1:] + [('CP',cp_int)]
+
 
 ################################################################################
 # rm_xs
@@ -69,6 +97,37 @@ def rm_xs(aligned_read):
 
     if xs_i < len(aligned_read.tags):
         aligned_read.tags = aligned_read.tags[:xs_i] + aligned_read.tags[xs_i+1:]
+
+
+################################################################################
+# splice_disagree
+#
+# Return true if the read is spliced and the current XS tag disagrees with the
+# new one.
+################################################################################
+def splice_disagree(aligned_read, new_xs):
+    spliced = False
+    for code,size in aligned_read.cigar:
+        if code == 3:
+            spliced = True
+
+    if not spliced:
+        return False
+    else:
+        return new_xs != aligned_read.opt('XS')
+
+
+################################################################################
+# spliced
+#
+# Return true if the read is spliced.
+################################################################################
+def spliced(aligned_read):
+    spliced = False
+    for code,size in aligned_read.cigar:
+        if code == 3:
+            spliced = True
+    return spliced
 
 
 ################################################################################
