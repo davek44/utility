@@ -23,9 +23,9 @@ def entropy(ls):
 ################################################################################
 # geo_mean
 ################################################################################
-def geo_mean(ls, log_sum=True):
+def geo_mean(ls, log_sum=True, pseudocount=0):
     if log_sum:
-        return math.exp(sum([math.log(x) for x in ls])/float(len(ls)))
+        return math.exp(sum([math.log(x+pseudocount) for x in ls])/float(len(ls)))
     else:
         prod = ls[0]
         for x in ls:
