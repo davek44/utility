@@ -53,7 +53,7 @@ def main():
 
     # print table
     for g in genes:
-        print '%-18s %s' % (g,' '.join(homologues.get(g,[])))
+        print '%s\t%s' % (g,' '.join(homologues.get(g,[])))
 
 
 ################################################################################
