@@ -27,7 +27,7 @@ def main():
     for line in open(gff_file):
         a = line.split('\t')
 
-        cols = [a[0], a[3], a[4], a[2], '0', a[6], '0', '0', '255,0,0', '1', str(int(a[4])-int(a[3])+1), '0']
+        cols = [a[0], str(int(a[3])-1), a[4], a[2], '0', a[6], '0', '0', '255,0,0', '1', str(int(a[4])-int(a[3])+1), '0']
         print '\t'.join(cols)
     
 
