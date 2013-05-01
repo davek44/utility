@@ -21,95 +21,115 @@ def main():
 
     parser.add_option('-g', dest='gff_file', default=None, help='Filter the TEs by overlap with genes in the given gff file [Default: %default]')
 
-    parser.add_option('-n', dest='no_nh', default=False, action='store_true', help='BAM alignments lack the NH tag for multi-mapping reads [Default: %default]')
-
     parser.add_option('-r', dest='repeats_gff', default='%s/research/common/data/genomes/hg19/annotation/repeatmasker/hg19.fa.out.tp.gff' % os.environ['HOME'])
     (options,args) = parser.parse_args()
 
-    if len(args) < 1:
+    if len(args) != 1:
         parser.error('Must provide a gff file for the feature of interest.')
     else:
-        bam_files = args
+        bam_file = args[0]
 
-    # count genomic bp
-    genome_bp = count_hg19()
+    # compute size of search space
+    if options.gff_file:
+        genome_bp = count_gff(options.gff_file)
+    else:
+        genome_bp = count_hg19()
 
-    # filter TEs by gff file
+    # filter TEs and read alignments by gff file
     if options.gff_file:
         te_gff_fd, te_gff_file = tempfile.mkstemp()
 
-        p = subprocess.Popen('intersectBed -u -a %s -b %s > %s' % (options.repeats_gff, options.gff_file, te_gff_file), shell=True)
-        os.waitpid(p.pid,0)
+        subprocess.call('intersectBed -u -a %s -b %s > %s' % (options.repeats_gff, options.gff_file, te_gff_file), shell=True)
         options.repeats_gff = te_gff_file
+
+        bam_gff_fd, bam_gff_file = tempfile.mkstemp()
+        subprocess.call('intersectBed -abam %s -b %s > %s' % (bam_file, options.gff_file, bam_gff_file), shell=True)
+        bam_file = bam_gff_file
+
+    # filter BAM file for mapping quality
+    bam_mapq_fd, bam_mapq_file = tempfile.mkstemp()
+    bam_in = pysam.Samfile(bam_file, 'rb')
+    bam_mapq_out = pysam.Samfile(bam_mapq_file, 'wb', template=bam_in)
+    for aligned_read in bam_in:
+        if aligned_read.mapq > 0:
+            bam_mapq_out.write(aligned_read)
+    bam_mapq_out.close()
 
     # hash counted repeat genomic bp
     te_lengths = measure_te(options.repeats_gff)
 
-    te_counts = {}
-    num_aligned_reads = 0
-    for bam_file in bam_files:
-        # count # aligned reads
-        # hash multi-mapping reads
-        multi_reads = {}
-        if options.no_nh:
-            bam_in = pysam.Samfile(bam_file, 'rb')
-            for read in bam_in:
-                multi_reads[read.qname] = multi_reads.get(read.qname,0) + 1
-            bam_in.close()
-
-            num_aligned_reads += len(multi_reads)
-            for qname in multi_reads.keys():
-                if multi_reads[qname] == 1:
-                    del multi_reads[qname]
-
+    # count fragments and hash multi-mappers
+    num_fragments = 0
+    multi_maps = {}
+    paired_poll = {False:0, True:0}
+    for aligned_read in pysam.Samfile(bam_mapq_file, 'rb'):
+        if aligned_read.is_paired:
+            num_fragments += 0.5/aligned_read.opt('NH')
         else:
-            num_aligns = 0
-            bam_in = pysam.Samfile(bam_file, 'rb')
-            for read in bam_in:
-                num_aligns += 1
-                if read.opt('NH') > 1:
-                    multi_reads[read.qname] = read.opt('NH')
-            bam_in.close()
-            num_aligned_reads += num_aligns - sum(multi_reads.values()) + len(multi_reads)
+            num_fragments += 1.0/aligned_read.opt('NH')
 
-        # intersect (require 50% of read)
-        proc = subprocess.Popen('intersectBed -wo -bed -f 0.5 -abam %s -b %s' % (bam_file,options.repeats_gff), shell=True, stdout=subprocess.PIPE)
+        if aligned_read.opt('NH') > 0:
+            multi_maps[aligned_read.qname] = aligned_read.opt('NH')
 
-        # hash read counts by TE family
-        line = proc.stdout.readline()
-        while line:
-            a = line.split('\t')
-            te_kv = gff.gtf_kv(a[14])
+        paired_poll[aligned_read.is_paired] += 1
 
-            if not a[3] in multi_reads:
-                read_inc = 1.0
-            else:
-                read_inc = 1.0/multi_reads[a[3]]
+    # guess paired-ness
+    if paired_poll[True] > 0 and paired_poll[False] > 0:
+        print >> sys.stderr, 'Paired-ness of the reads is ambiguous'
+    if paired_poll[True] > paired_poll[False]:
+        is_paired = True
+    else:
+        is_paired = False
 
-            te_counts[(te_kv['repeat'],te_kv['family'])] = te_counts.get((te_kv['repeat'],te_kv['family']),0.0) + read_inc
-            te_counts[('*',te_kv['family'])] = te_counts.get(('*',te_kv['family']),0.0) + read_inc
-            te_counts[('*','*')] = te_counts.get(('*','*'),0.0) + read_inc
+    # hash read counts by TE family
+    te_counts = {}
+    proc = subprocess.Popen('intersectBed -wo -bed -abam %s -b %s' % (bam_mapq_file,options.repeats_gff), shell=True, stdout=subprocess.PIPE)
+    while line in proc.stdout:
+        a = line.split('\t')
+        te_kv = gff.gtf_kv(a[14])
 
-            line = proc.stdout.readline()
-        proc.communicate()
+        if is_paired:
+            read_inc = 0.5/multi_maps.get(a[3],1.0)
+        else:
+            read_inc = 1.0/multi_maps.get(a[3],1.0)
+
+        te_counts[(te_kv['repeat'],te_kv['family'])] = te_counts.get((te_kv['repeat'],te_kv['family']),0.0) + read_inc
+        te_counts[('*',te_kv['family'])] = te_counts.get(('*',te_kv['family']),0.0) + read_inc
+        te_counts[('*','*')] = te_counts.get(('*','*'),0.0) + read_inc
+
+    proc.communicate()
 
     # compute stats, print table
     for (rep,fam) in te_counts:
         te_p = float(te_lengths[(rep,fam)]) / genome_bp
 
-        if te_counts[(rep,fam)] > te_p*num_aligned_reads:
-            p_val = binom.sf(int(te_counts[(rep,fam)])-1, num_aligned_reads, te_p)
+        if te_counts[(rep,fam)] > te_p*num_fragments:
+            p_val = binom.sf(int(te_counts[(rep,fam)])-1, num_fragments, te_p)
         else:
-            p_val = binom.cdf(int(te_counts[(rep,fam)]), num_aligned_reads, te_p)
+            p_val = binom.cdf(int(te_counts[(rep,fam)]), num_fragments, te_p)
 
-        if te_p*num_aligned_reads > 0:
-            fold = te_counts[(rep,fam)]/(te_p*num_aligned_reads)
+        if te_p*num_fragments > 0:
+            fold = te_counts[(rep,fam)]/(te_p*num_fragments)
         else:
             fold = 0
 
         cols = (rep, fam, te_lengths[(rep,fam)], te_counts[(rep,fam)], te_p, fold, p_val)
 
         print '%-18s %-18s %10d %10d %10.2e % 10.3f %10.2e' % cols
+
+
+################################################################################
+# count_gff
+#
+# Count the number of bp in the limiting GFF file.
+################################################################################
+def count_gff(gff_file):
+    p = subprocess.Popen('mergeBed -i %s' % gff_file, shell=True, stdout=subprocess.PIPE)
+    for line in p.stdout:
+        gff_bp += int(a[2]) - int(a[1])
+    p.communicate()
+
+    return gff_bp
 
 
 ################################################################################
