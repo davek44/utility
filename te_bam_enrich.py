@@ -84,7 +84,7 @@ def main():
     # hash read counts by TE family
     te_counts = {}
     proc = subprocess.Popen('intersectBed -wo -bed -abam %s -b %s' % (bam_mapq_file,options.repeats_gff), shell=True, stdout=subprocess.PIPE)
-    while line in proc.stdout:
+    for line in proc.stdout:
         a = line.split('\t')
         te_kv = gff.gtf_kv(a[14])
 
