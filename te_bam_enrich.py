@@ -127,6 +127,7 @@ def count_gff(gff_file):
     gff_bp = 0
     p = subprocess.Popen('mergeBed -i %s' % gff_file, shell=True, stdout=subprocess.PIPE)
     for line in p.stdout:
+        a = line.split()
         gff_bp += int(a[2]) - int(a[1])
     p.communicate()
 
