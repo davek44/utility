@@ -124,6 +124,7 @@ def main():
 # Count the number of bp in the limiting GFF file.
 ################################################################################
 def count_gff(gff_file):
+    gff_bp = 0
     p = subprocess.Popen('mergeBed -i %s' % gff_file, shell=True, stdout=subprocess.PIPE)
     for line in p.stdout:
         gff_bp += int(a[2]) - int(a[1])
