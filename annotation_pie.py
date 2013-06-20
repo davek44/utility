@@ -71,14 +71,30 @@ def main():
     intergenic_reads = read_count - cds_reads - utr3_reads - utr5_reads - lnc_reads - intron_reads
     intergenic_reads_norm = intergenic_reads / float(intergenic_length)
 
+    # compute pie values to print
+    cds_pie = float(cds_reads)/read_count
+    utr5_pie = float(utr5_reads)/read_count
+    utr3_pie = float(utr3_reads)/read_count
+    lnc_pie = float(lnc_reads)/read_count
+    intron_pie = float(intron_reads)/read_count
+    intergenic_pie = float(intergenic_reads)/read_count
+
+    norm_sum = cds_reads_norm + utr5_reads_norm + utr3_reads_norm + lnc_reads_norm + intron_reads_norm + intergenic_reads_norm
+    cds_norm_pie = float(cds_reads_norm)/norm_sum
+    utr5_norm_pie = float(utr5_reads_norm)/norm_sum
+    utr3_norm_pie = float(utr3_reads_norm)/norm_sum
+    lnc_norm_pie = float(lnc_reads_norm)/norm_sum
+    intron_norm_pie = float(intron_reads_norm)/norm_sum
+    intergenic_norm_pie = float(intergenic_reads_norm)/norm_sum
+
     # print counts to file
     counts_out = open('annotation_counts.txt','w')
-    print >> counts_out, 'CDS        %10d %8d %9.2e' % (cds_length, cds_reads, cds_reads_norm)
-    print >> counts_out, "5'UTR      %10d %8d %9.2e" % (utr5_length, utr5_reads, utr5_reads_norm)
-    print >> counts_out, "3'UTR      %10d %8d %9.2e" % (utr3_length, utr3_reads, utr3_reads_norm)
-    print >> counts_out, 'lncRNA     %10d %8d %9.2e' % (lnc_length, lnc_reads, lnc_reads_norm)
-    print >> counts_out, 'Intron     %10d %8d %9.2e' % (intron_length, intron_reads, intron_reads_norm)
-    print >> counts_out, 'Intergenic %10d %8d %9.2e' % (intergenic_length, intergenic_reads, intergenic_reads_norm)
+    print >> counts_out, 'CDS        %10d %8d %5.3f %9.2e %5.3f' % (cds_length, cds_reads, cds_pie, cds_reads_norm, cds_norm_pie)
+    print >> counts_out, "5'UTR      %10d %8d %5.3f %9.2e %5.3f" % (utr5_length, utr5_reads, utr5_pie, utr5_reads_norm, utr5_norm_pie)
+    print >> counts_out, "3'UTR      %10d %8d %5.3f %9.2e %5.3f" % (utr3_length, utr3_reads, utr3_pie, utr3_reads_norm, utr3_norm_pie)
+    print >> counts_out, 'lncRNA     %10d %8d %5.3f %9.2e %5.3f' % (lnc_length, lnc_reads, lnc_pie, lnc_reads_norm, lnc_norm_pie)
+    print >> counts_out, 'Intron     %10d %8d %5.3f %9.2e %5.3f' % (intron_length, intron_reads, intron_pie, intron_reads_norm, intron_norm_pie)
+    print >> counts_out, 'Intergenic %10d %8d %5.3f %9.2e %5.3f' % (intergenic_length, intergenic_reads, intergenic_pie, intergenic_reads_norm, intergenic_norm_pie)
     counts_out.close()
 
     # construct data frame
