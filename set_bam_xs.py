@@ -18,6 +18,7 @@ def main():
     usage = 'usage: %prog [options] <bam>'
     parser = OptionParser(usage)
     parser.add_option('-o', dest='bam_out_file', help='Output BAM file')
+    parser.add_option('-s', dest='strip', action='store_true', default=False, help='Strip XS tags for unspliced reads [Default: %default]')
     (options,args) = parser.parse_args()
 
     if len(args) != 1:
@@ -33,37 +34,59 @@ def main():
     bam_out = pysam.Samfile(options.bam_out_file, 'wb', template=bam_in)
 
     for aligned_read in bam_in:
-        # determine XS
-        if aligned_read.is_paired:
-            if aligned_read.is_read1:
-                if aligned_read.is_reverse:
-                    new_xs = '+'
-                else:
-                    new_xs = '-'
-            else:
-                if aligned_read.is_reverse:
-                    new_xs = '-'
-                else:
-                    new_xs = '+'
-        else:
-            if aligned_read.is_reverse:
-                new_xs = '-'
-            else:
-                new_xs = '+'
+        # just strip the tag
+        if options.strip:
+            # ... of unspliced reads
+            if not spliced(aligned_read):
+                # ... with a tag
+                try:
+                    xs_tag = aligned_read.opt('XS')
+                except:
+                    xs_tag = None
 
-        # toss it if the splicing strand differs
-        if not splice_disagree(aligned_read, new_xs):
-            # remove existing XS tag
-            rm_xs(aligned_read)
+                if xs_tag:
+                    # remove tag
+                    rm_xs(aligned_read)
 
-            # set XS tag
-            aligned_read.tags = aligned_read.tags + [('XS',new_xs)]
-
-            # fix CP tag
-            fix_cp(aligned_read)
+                    # fix CP tag
+                    fix_cp(aligned_read)
 
             # output
             bam_out.write(aligned_read)
+
+        # set the tag properly
+        else:
+            # determine XS
+            if aligned_read.is_paired:
+                if aligned_read.is_read1:
+                    if aligned_read.is_reverse:
+                        new_xs = '+'
+                    else:
+                        new_xs = '-'
+                else:
+                    if aligned_read.is_reverse:
+                        new_xs = '-'
+                    else:
+                        new_xs = '+'
+            else:
+                if aligned_read.is_reverse:
+                    new_xs = '-'
+                else:
+                    new_xs = '+'
+
+            # toss it if the splicing strand differs
+            if not splice_disagree(aligned_read, new_xs):
+                # remove existing XS tag
+                rm_xs(aligned_read)
+
+                # set XS tag
+                aligned_read.tags = aligned_read.tags + [('XS',new_xs)]
+
+                # fix CP tag
+                fix_cp(aligned_read)
+
+                # output
+                bam_out.write(aligned_read)
 
     bam_in.close()
     bam_out.close()
@@ -106,12 +129,7 @@ def rm_xs(aligned_read):
 # new one.
 ################################################################################
 def splice_disagree(aligned_read, new_xs):
-    spliced = False
-    for code,size in aligned_read.cigar:
-        if code == 3:
-            spliced = True
-
-    if not spliced:
+    if not spliced(aligned_read):
         return False
     else:
         return new_xs != aligned_read.opt('XS')
