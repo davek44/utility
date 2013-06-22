@@ -10,6 +10,12 @@ import gff
 #
 # Compute the enrichment of aligned reads in a BAM file in transposable
 # element families.
+#
+# Slight bug:
+# To intersect the BAM file with the repeats GFF, I need to use the -split
+# option to avoid intron intersections. However, then it splits each spliced
+# read so the same read could be counted twice if it intersects at both
+# junctions. I doubt this happens much.
 ################################################################################
 
 ################################################################################
@@ -18,9 +24,7 @@ import gff
 def main():
     usage = 'usage: %prog [options] <bam file>'
     parser = OptionParser(usage)
-
     parser.add_option('-g', dest='gff_file', default=None, help='Filter the TEs by overlap with genes in the given gff file [Default: %default]')
-
     parser.add_option('-r', dest='repeats_gff', default='%s/research/common/data/genomes/hg19/annotation/repeatmasker/hg19.fa.out.tp.gff' % os.environ['HOME'])
     (options,args) = parser.parse_args()
 
@@ -68,7 +72,7 @@ def main():
         else:
             num_fragments += 1.0/aligned_read.opt('NH')
 
-        if aligned_read.opt('NH') > 0:
+        if aligned_read.opt('NH') > 1:
             multi_maps[aligned_read.qname] = aligned_read.opt('NH')
 
         paired_poll[aligned_read.is_paired] += 1
@@ -81,9 +85,9 @@ def main():
     else:
         is_paired = False
 
-    # hash read counts by TE family
+    # hash read counts by TE family    
     te_counts = {}
-    proc = subprocess.Popen('intersectBed -wo -bed -abam %s -b %s' % (bam_mapq_file,options.repeats_gff), shell=True, stdout=subprocess.PIPE)
+    proc = subprocess.Popen('intersectBed -split -wo -bed -abam %s -b %s' % (bam_mapq_file,options.repeats_gff), shell=True, stdout=subprocess.PIPE)
     for line in proc.stdout:
         a = line.split('\t')
         te_kv = gff.gtf_kv(a[14])
