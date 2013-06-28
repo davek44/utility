@@ -98,12 +98,12 @@ class fpkm_tracking:
     #
     # Return an expression vector for the given gene.
     ############################################################################
-    def gene_expr(self, gene):
+    def gene_expr(self, gene, not_found=float('nan')):
         gene_i = self.name_or_index(gene)
         if gene_i:
             return self.expr[gene_i,:]
         else:
-            return [0]*len(self.experiments)
+            return [not_found]*len(self.experiments)
 
 
     ############################################################################
@@ -111,17 +111,17 @@ class fpkm_tracking:
     #
     # Return FPKM for a given gene in a given experiment.
     ############################################################################
-    def gene_expr_exp(self, gene, exp):
+    def gene_expr_exp(self, gene, exp, not_found=float('nan')):
         gene_i = self.name_or_index(gene)
         if gene_i == None:
             print >> sys.stderr, '%s expression not found' % gene
-            return 0
+            return not_found
         else:
             for exp_i in range(len(self.experiments)):
                 if self.experiments[exp_i] == exp:
                     return self.expr[gene_i,exp_i]
             print >> sys.stderr, '%s expression not found' % exp
-            return 0
+            return not_found
 
 
     ############################################################################
