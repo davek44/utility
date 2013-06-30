@@ -247,11 +247,7 @@ def quantile(ls, q):
 # Return the standard deviation of a list
 ############################################################
 def sd(ls):
-    u = mean(ls)
-    dev_sum = 0.0
-    for x in ls:
-        dev_sum += (x-u)*(x-u)
-    return math.sqrt(dev_sum / float(len(ls)))
+    return math.sqrt(variance(ls))
 
 
 ################################################################################
@@ -277,3 +273,16 @@ def sample_probs(items, probs, count):
         samples[c] = items[p]
 
     return samples
+
+
+############################################################
+# variance
+#
+# Return the variance of a list.
+############################################################
+def variance(ls):
+    u = mean(ls)
+    dev_sum = 0.0
+    for x in ls:
+        dev_sum += (x-u)*(x-u)
+    return dev_sum / float(len(ls)-1)
