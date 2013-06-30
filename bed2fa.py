@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from optparse import OptionParser
 import gzip, os, sys
-import dna, gff
+import dna
 
 ################################################################################
 # bed2fa.py
@@ -20,7 +20,7 @@ def main():
     usage = 'usage: %prog [options] <bed file>'
     parser = OptionParser(usage)
     parser.add_option('-c', dest='chr_dir', default='', help='Directory of chromosome files named according to the first column of the gff file')
-    parser.add_option('-f', dest='fasta_file', default='%s/research/common/data/genomes/hg19/sequence/hg19.fa' % os.environ['HOME'], help='Fasta file with entries named according to the first column of the gff file [Default: %default]')
+    parser.add_option('-f', dest='fasta_file', default='/n/rinn_data1/indexes/human/hg19/bowtie2/hg19.fa', help='Fasta file [Default: %default]')
     (options,args) = parser.parse_args()
 
     if len(args) != 1:
