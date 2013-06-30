@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 from optparse import OptionParser
-import subprocess
+import os, subprocess, tempfile
 import gff
 
 ################################################################################
@@ -29,11 +29,12 @@ def main():
         gtf_to = args[3]
 
     # transmap to new genome
-    subprocess.call('chain_map.py -k gene_id -n %s %s %s > from_map.gtf' % (net_file,chain_file,gtf_from), shell=True)
+    from_map_gtf_fd, from_map_gtf_file = tempfile.mkstemp()
+    subprocess.call('chain_map.py -k gene_id -n %s %s %s > %s' % (net_file,chain_file,gtf_from,from_map_gtf_file), shell=True)
 
     # intersect w/ gtf_to
     homologues = {}
-    p = subprocess.Popen('intersectBed -wo -s -a from_map.gtf -b %s' % gtf_to, shell=True, stdout=subprocess.PIPE)
+    p = subprocess.Popen('intersectBed -wo -s -a %s -b %s' % (from_map_gtf_file,gtf_to), shell=True, stdout=subprocess.PIPE)
     for line in p.stdout:
         a = line.split('\t')
         
@@ -53,7 +54,10 @@ def main():
 
     # print table
     for g in genes:
-        print '%s\t%s' % (g,' '.join(homologues.get(g,[])))
+        print '%s\t%s' % (g,' '.join(homologues.get(g,['-'])))
+
+    os.close(from_map_gtf_fd)
+    os.remove(from_map_gtf_file)
 
 
 ################################################################################

@@ -237,8 +237,17 @@ def normalize(ls):
 ############################################################
 def quantile(ls, q):
     sls = sorted(ls)
-    qi = int(len(sls)*q)
-    return sls[qi]
+
+    if type(q) == list:
+        qval = []
+        for j in range(len(q)):
+            qi = int(len(sls)*q[j] + 0.5)
+            qval.append(sls[qi])
+    else:
+        qi = int(len(sls)*q + 0.5)
+        qval = sls[qi]
+
+    return qval
 
 
 ############################################################

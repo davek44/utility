@@ -10,6 +10,12 @@ import gff
 #
 # Compute the enrichment of aligned reads in a BAM file in transposable
 # element families.
+#
+# Slight bug:
+# To intersect the BAM file with the repeats GFF, I need to use the -split
+# option to avoid intron intersections. However, then it splits each spliced
+# read so the same read could be counted twice if it intersects at both
+# junctions. I doubt this happens much.
 ################################################################################
 
 ################################################################################
@@ -18,9 +24,7 @@ import gff
 def main():
     usage = 'usage: %prog [options] <bam file>'
     parser = OptionParser(usage)
-
     parser.add_option('-g', dest='gff_file', default=None, help='Filter the TEs by overlap with genes in the given gff file [Default: %default]')
-
     parser.add_option('-r', dest='repeats_gff', default='%s/research/common/data/genomes/hg19/annotation/repeatmasker/hg19.fa.out.tp.gff' % os.environ['HOME'])
     (options,args) = parser.parse_args()
 
@@ -37,17 +41,17 @@ def main():
 
     # filter TEs and read alignments by gff file
     if options.gff_file:
-        te_gff_fd, te_gff_file = tempfile.mkstemp()
+        te_gff_fd, te_gff_file = tempfile.mkstemp(dir='%s/research/scratch' % os.environ['HOME'])
 
         subprocess.call('intersectBed -u -a %s -b %s > %s' % (options.repeats_gff, options.gff_file, te_gff_file), shell=True)
         options.repeats_gff = te_gff_file
 
-        bam_gff_fd, bam_gff_file = tempfile.mkstemp()
+        bam_gff_fd, bam_gff_file = tempfile.mkstemp(dir='%s/research/scratch' % os.environ['HOME'])
         subprocess.call('intersectBed -abam %s -b %s > %s' % (bam_file, options.gff_file, bam_gff_file), shell=True)
         bam_file = bam_gff_file
 
     # filter BAM file for mapping quality
-    bam_mapq_fd, bam_mapq_file = tempfile.mkstemp()
+    bam_mapq_fd, bam_mapq_file = tempfile.mkstemp(dir='%s/research/scratch' % os.environ['HOME'])
     bam_in = pysam.Samfile(bam_file, 'rb')
     bam_mapq_out = pysam.Samfile(bam_mapq_file, 'wb', template=bam_in)
     for aligned_read in bam_in:
@@ -68,7 +72,7 @@ def main():
         else:
             num_fragments += 1.0/aligned_read.opt('NH')
 
-        if aligned_read.opt('NH') > 0:
+        if aligned_read.opt('NH') > 1:
             multi_maps[aligned_read.qname] = aligned_read.opt('NH')
 
         paired_poll[aligned_read.is_paired] += 1
@@ -81,9 +85,9 @@ def main():
     else:
         is_paired = False
 
-    # hash read counts by TE family
+    # hash read counts by TE family    
     te_counts = {}
-    proc = subprocess.Popen('intersectBed -wo -bed -abam %s -b %s' % (bam_mapq_file,options.repeats_gff), shell=True, stdout=subprocess.PIPE)
+    proc = subprocess.Popen('intersectBed -split -wo -bed -abam %s -b %s' % (bam_mapq_file,options.repeats_gff), shell=True, stdout=subprocess.PIPE)
     for line in proc.stdout:
         a = line.split('\t')
         te_kv = gff.gtf_kv(a[14])
@@ -104,9 +108,9 @@ def main():
         te_p = float(te_lengths[(rep,fam)]) / genome_bp
 
         if te_counts[(rep,fam)] > te_p*num_fragments:
-            p_val = binom.sf(int(te_counts[(rep,fam)])-1, num_fragments, te_p)
+            p_val = binom.sf(int(te_counts[(rep,fam)])-1, int(num_fragments), te_p)
         else:
-            p_val = binom.cdf(int(te_counts[(rep,fam)]), num_fragments, te_p)
+            p_val = binom.cdf(int(te_counts[(rep,fam)]), int(num_fragments), te_p)
 
         if te_p*num_fragments > 0:
             fold = te_counts[(rep,fam)]/(te_p*num_fragments)
@@ -115,7 +119,13 @@ def main():
 
         cols = (rep, fam, te_lengths[(rep,fam)], te_counts[(rep,fam)], te_p, fold, p_val)
 
-        print '%-18s %-18s %10d %10d %10.2e % 10.3f %10.2e' % cols
+        print '%-18s %-18s %10d %10d %10.2e %10.3f %10.2e' % cols
+
+    # clean
+    os.remove(bam_mapq_file)
+    if options.gff_file:
+        os.remove(te_gff_file)
+        os.remove(bam_gff_file)
 
 
 ################################################################################
