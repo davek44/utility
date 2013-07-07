@@ -3,7 +3,7 @@ from optparse import OptionParser
 from rpy2.robjects.packages import importr
 import rpy2.robjects as ro
 import rpy2.robjects.lib.ggplot2 as ggplot2
-import os, pdb, subprocess, sys, tempfile
+import os, pdb, shutil, subprocess, sys, tempfile
 import pysam
 import gff
 
@@ -23,8 +23,10 @@ def main():
     usage = 'usage: %prog [options] <gff> <bam>'
     parser = OptionParser(usage)
     #parser.add_option('-c', dest='control_bam_file', default=None, help='Control BAM file')
+    parser.add_option('-i', dest='individual_plots', default=False, action='store_true', help='Print a coverage plot for every individual peak [Default: %default]')
     parser.add_option('-o', dest='out_prefix', default='peak_cov', help='Output prefix [Default: %default]')
-    parser.add_option('-u', dest='range', default=100, type='int', help='Range around peak middle [Default: %default]')
+    parser.add_option('-p', dest='properly_paired', default=False, action='store_true', help='Count entire fragments for only properly paired reads [Default: %default]')
+    parser.add_option('-u', dest='range', default=300, type='int', help='Range around peak middle [Default: %default]')
     (options,args) = parser.parse_args()
 
     if len(args) != 2:
@@ -45,31 +47,42 @@ def main():
     # count fragments and hash multi-mappers
     num_fragments = 0
     multi_maps = {}
-    paired_poll = {False:0, True:0}
     for aligned_read in pysam.Samfile(bam_mapq_file, 'rb'):
-        if aligned_read.is_paired:
-            num_fragments += 0.5/aligned_read.opt('NH')
+        if options.properly_paired:
+            if aligned_read.is_properly_paired:
+                num_fragments += 0.5/aligned_read.opt('NH')
         else:
-            num_fragments += 1.0/aligned_read.opt('NH')
+            if aligned_read.is_paired:
+                num_fragments += 0.5/aligned_read.opt('NH')
+            else:
+                num_fragments += 1.0/aligned_read.opt('NH')
 
         if aligned_read.opt('NH') > 1:
             multi_maps[aligned_read.qname] = aligned_read.opt('NH')
 
-        paired_poll[aligned_read.is_paired] += 1
+    # extend peaks to range
+    peaks_gff_range_fd, peaks_gff_range_file = tempfile.mkstemp()
+    peaks_gff_range_out = open(peaks_gff_range_file, 'w')
+    for line in open(peaks_gff):
+        a = line.split('\t')
+        
+        pstart = int(a[3])
+        pend = int(a[4])
+        peak_mid = pstart + (pend-pstart)/2
 
-    # guess paired-ness
-    if paired_poll[True] > 0 and paired_poll[False] > 0:
-        print >> sys.stderr, 'Paired-ness of the reads is ambiguous'
-    if paired_poll[True] > paired_poll[False]:
-        is_paired = True
-    else:
-        is_paired = False
+        a[3] = str(peak_mid - options.range/2 - 1)
+        a[4] = str(peak_mid + options.range/2 + 1)
+
+        print >> peaks_gff_range_out, '\t'.join(a),
+    peaks_gff_range_out.close()
 
     # initialize coverage counters
     peak_cov = [0.0]*(1+options.range)
+    peak_cov_individual = {}
+    peak_reads = {}
 
     # count reads
-    p = subprocess.Popen('intersectBed -split -wo -bed -abam %s -b %s' % (bam_mapq_file,peaks_gff), shell=True, stdout=subprocess.PIPE)
+    p = subprocess.Popen('intersectBed -split -wo -bed -abam %s -b %s' % (bam_mapq_file,peaks_gff_range_file), shell=True, stdout=subprocess.PIPE)
     for line in p.stdout:
         a = line.split('\t')
         
@@ -82,6 +95,7 @@ def main():
             pstart = int(a[9])
             pend = int(a[10])
             peak_id = gff.gtf_kv(a[14])['id']
+            peak_reads[peak_id] = peak_reads.get(peak_id,0) + 1
 
             peak_mid = pstart + (pend-pstart)/2
             peak_range_start = peak_mid - options.range/2
@@ -90,17 +104,39 @@ def main():
             range_start = max(rstart, peak_range_start)
             range_end = min(rend, peak_range_end)
 
-            for i in range(range_start - peak_range_start, range_end - peak_range_start):
-                peak_cov[i] += 1.0/multi_maps.get(aligned_read.qname,1)
+            for i in range(range_start - peak_range_start, range_end - peak_range_start + 1):
+                peak_cov[i] += 1.0/multi_maps.get(rheader,1)
+
+            if options.individual_plots:
+                if not peak_id in peak_cov_individual:
+                    peak_cov_individual[peak_id] = [0.0]*(1+options.range)
+                for i in range(range_start - peak_range_start, range_end - peak_range_start + 1):
+                    peak_cov_individual[peak_id][i] += 1.0/multi_maps.get(rheader,1)
+
 
     p.communicate()
+
+    for peak_id in peak_reads:
+        print peak_id, peak_reads[peak_id]
 
     # output
     make_output(peak_cov, options.out_prefix, options.range)
 
+    if options.individual_plots:
+        individual_dir = '%s_individuals' % options.out_prefix
+        if os.path.isdir(individual_dir):
+            shutil.rmtree(individual_dir)
+        os.mkdir(individual_dir)
+
+        for peak_id in peak_cov_individual:
+            if peak_reads[peak_id] > 150:
+                make_output(peak_cov_individual[peak_id], '%s/%s' % (individual_dir,peak_id), options.range)
+
     # clean
     os.close(bam_mapq_fd)
     os.remove(bam_mapq_file)
+    os.close(peaks_gff_range_fd)
+    os.remove(peaks_gff_range_file)
 
 
 ################################################################################
