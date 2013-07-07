@@ -321,9 +321,16 @@ def splice_sites(gtf_file, exon=0, intron=2, output_file=None):
 ################################################################################
 def read_genes(gtf_file, key_id='transcript_id', sort=True):
     genes = {}
-    for line in open(gtf_file):
-        a = line.split('\t')
 
+    gtf_in = open(gtf_file)
+
+    # ignore header
+    line = gtf_in.readline()
+    while line[:2] == '##':
+        line = gtf_in.readline()
+    
+    while line:
+        a = line.split('\t')
         if a[2] in ['exon','CDS']:
             kv = gtf_kv(a[8])
             if not kv[key_id] in genes:
@@ -333,6 +340,10 @@ def read_genes(gtf_file, key_id='transcript_id', sort=True):
                 genes[kv[key_id]].add_exon(int(a[3]), int(a[4]), sort=sort)
             elif a[2] == 'CDS':
                 genes[kv[key_id]].add_cds(int(a[3]), int(a[4]), sort=sort)
+
+        line = gtf_in.readline()
+
+    gtf_in.close()
 
     return genes
 
