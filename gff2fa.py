@@ -21,7 +21,8 @@ def main():
     parser.add_option('-f', dest='fasta_file', default='%s/research/common/data/genomes/hg19/sequence/hg19.fa' % os.environ['HOME'], help='Fasta file with entries named according to the first column of the gff file [Default: %default]')
     parser.add_option('-g', dest='gene_too', default=False, action='store_true', help='Print transcript id and gene id [Default: %default]')
     #parser.add_option('--gtf', dest='gtf', action='store_true', default=False, help='Input file is gtf and linked entries should be combined into a single sequence [Default: %default]')
-    parser.add_option('--head', dest='header_key', default='transcript_id', help='Gff key to be used to merge gff entries and label the fasta headers [Default: %default]')
+    parser.add_option('--head', dest='header_key', default='transcript_id', help='GFF key to be used to merge GFF entries and label the fasta headers [Default: %default]')
+    parser.add_option('-s', dest='split_lines', default=None, action='store_true', help='Split sequence across multiple lines [Default: %default]')
     parser.add_option('-x', dest='exon', action='store_true', default=False, help='Only include exon rows [Default: %default]')
     (options,args) = parser.parse_args()
 
@@ -87,7 +88,14 @@ def header_gff(header, seq, gff_file, options):
                 header_seqs[head_id] = dna.rc(feat_seq) + header_seqs.get(head_id,'')
 
     for header in header_seqs:
-        print '>%s\n%s' % (header,header_seqs[header])
+        print '>%s' % header
+        if options.split_lines:
+            i = 0
+            while i < len(header_seqs[header]):
+                print header_seqs[header][i:i+60]
+                i += 60
+        else:
+            print header_seqs[header]
 
 
 ################################################################################
