@@ -3,7 +3,7 @@ from optparse import OptionParser
 from scipy.stats import binom
 import gzip, os, random, subprocess, sys, tempfile
 import pysam
-import gff
+import gff, stats
 
 ################################################################################
 # te_bam_enrich.py
@@ -36,25 +36,13 @@ def main():
         bam_file = args[0]
 
     ############################################
-    # lengths
-    ############################################
-    # compute size of search space
-    if options.gff_file:
-        genome_length = count_gff(options.gff_file)
-    else:
-        genome_length = count_hg19()
-
-    # hash counted repeat genomic bp
-    te_lengths = measure_te(options.repeats_gff)
-
-    ############################################
     # GFF filter
     ############################################
     # filter TEs and read alignments by gff file
     if options.gff_file:
         # filter TE GFF
         te_gff_fd, te_gff_file = tempfile.mkstemp(dir='%s/research/scratch/temp' % os.environ['HOME'])
-        subprocess.call('intersectBed -u -a %s -b %s > %s' % (options.repeats_gff, options.gff_file, te_gff_file), shell=True)
+        subprocess.call('intersectBed -a %s -b %s > %s' % (options.repeats_gff, options.gff_file, te_gff_file), shell=True)
         options.repeats_gff = te_gff_file
 
         # filter BAM
@@ -92,6 +80,22 @@ def main():
                     cbam_mapq_out.write(aligned_read)
             cbam_mapq_out.close()
             options.control_bam_file = cbam_mapq_file
+
+    ############################################
+    # lengths
+    ############################################
+    # compute size of search space
+    if options.gff_file:
+        genome_length = count_gff(options.gff_file)
+    else:
+        genome_length = count_hg19()
+
+    # estimate read length
+    read_len = estimate_read_length(bam_file)
+
+    # hash counted repeat genomic bp
+    #te_lengths = measure_te(options.repeats_gff)
+    te_lengths = te_target_size(options.repeats_gff, read_len)
 
     ############################################
     # count TE fragments
@@ -235,10 +239,32 @@ def count_te_fragments(bam_file, te_gff):
 
 
 ################################################################################
+# estimate_read_length
+#
+# Compute mean read length by sampling the first N reads.
+################################################################################
+def estimate_read_length(bam_file):
+    samples = 10000
+    s = 0
+    read_lengths = []
+    for aligned_read in pysam.Samfile(bam_file, 'rb'):
+        read_lengths.append(aligned_read.rlen)
+        s += 1
+        if s >= samples:
+            break
+    return int(0.5+stats.mean(read_lengths))
+        
+
+################################################################################
 # measure_te
 #
 # Hash the number of bp covered by various repeats in the RepeatMasker gff file
 # and the lincRNA gtf file.
+#
+# Note:
+#  -This version is obsolete because it doesn't consider that overlapping
+#   reads need not be inside the TE and the true range depends on the read
+#   length. It's been replaced by te_target_size.
 ################################################################################
 def measure_te(rm_file):
     repeat_bp = {}
@@ -256,6 +282,64 @@ def measure_te(rm_file):
         repeat_bp[('*','*')] = repeat_bp.get(('*','*'),0) + length
 
     return repeat_bp
+
+################################################################################
+# te_target_size
+#
+# Measure the overlap target area for each TE for the given read length.
+################################################################################
+def te_target_size(te_gff, read_len):
+    te_bp = {}
+    active_te_intervals = {}
+
+    for line in open(te_gff):
+        a = line.split('\t')
+
+        kv = gff.gtf_kv(a[8])
+        rep = kv['repeat']
+        fam = kv['family']
+
+        chrom = a[0]
+        start = int(a[3])
+        end = int(a[4])
+
+        # process closed intervals
+        for arep, afam in active_te_intervals.keys():
+            achrom, astart, aend = active_te_intervals[(arep,afam)]
+
+            if achrom != chrom or aend + read_len < start:
+                # add
+                te_bp[(arep,afam)] = te_bp.get((arep,afam),0) + aend - astart + 1 + read_len
+                # close
+                del active_te_intervals[(arep,afam)]
+
+        # update/add te
+        if (rep,fam) in active_te_intervals:
+            achrom, astart, aend = active_te_intervals[(rep,fam)]
+            active_te_intervals[(rep,fam)] = (chrom, min(astart,start), max(aend, end))
+        else:
+            active_te_intervals[(rep,fam)] = (chrom, start, end)
+
+        if ('*',fam) in active_te_intervals:
+            achrom, astart, aend = active_te_intervals[('*',fam)]
+            active_te_intervals[('*',fam)] = (chrom, min(astart,start), max(aend, end))
+        else:
+            active_te_intervals[('*',fam)] = (chrom, start, end)
+
+        if ('*','*') in active_te_intervals:
+            achrom, astart, aend = active_te_intervals[('*','*')]
+            active_te_intervals[('*','*')] = (chrom, min(astart,start), max(aend, end))
+        else:
+            active_te_intervals[('*','*')] = (chrom, start, end)
+
+    # close remaining
+    for arep, afam in active_te_intervals.keys():
+        achrom, astart, aend = active_te_intervals[(arep,afam)]
+
+        # add
+        te_bp[(arep,afam)] = te_bp.get((arep,afam),0) + aend - astart + 1 + read_len
+
+    return te_bp
 
 
 ################################################################################
