@@ -8,8 +8,8 @@ import clip_peaks
 ################################################################################
 # transcript_uniformity.py
 #
-# Measure the uniformity of read coverage on the transcripts defined
-# by a given GTF file.
+# Measure the uniformity of read coverage using the index of dispersion on the
+# transcripts defined by a given GTF file.
 ################################################################################
 
 # globals that are a pain to pass around
@@ -103,7 +103,7 @@ def main():
 
     # initialize stats
     table_out = open('%s/uniformity_table.txt' % clip_peaks.out_dir, 'w')
-    cv_list = []
+    id_list = []
     fpkm_list = []
 
     # open bam
@@ -154,10 +154,10 @@ def main():
             if gene_transcripts[tid].fpkm > 1 and len(transcript_isoform_counts[tid]) > 5:
                 u, sd = stats.mean_sd(transcript_isoform_counts[tid][:-1])
                 if u > 0:
-                    cv_list.append(sd/u)
+                    id_list.append(sd*sd/u)
                     fpkm_list.append(gene_transcripts[tid].fpkm)
 
-                    cols = (tid, gene_transcripts[tid].fpkm, len(transcript_isoform_counts[tid])-1, u, sd, sd/u)
+                    cols = (tid, gene_transcripts[tid].fpkm, len(transcript_isoform_counts[tid])-1, u, sd, id_list[0])
                     print >> table_out, '%-20s  %8.2f  %6d  %7.2f  %7.2f  %5.3f' % cols        
 
     bam_in.close()
@@ -166,14 +166,14 @@ def main():
     ############################################
     # summary stats
     ############################################
-    median = stats.median(cv_list)
-    mean = stats.mean(cv_list)
+    median = stats.median(id_list)
+    mean = stats.mean(id_list)
 
-    fpkm_cv_sum = sum([cv_list[i]*fpkm_list[i] for i in range(len(cv_list))])
+    fpkm_cv_sum = sum([id_list[i]*fpkm_list[i] for i in range(len(id_list))])
     fpkm_sum = sum(fpkm_list)
     fpkm_mean = fpkm_cv_sum / fpkm_sum
 
-    logfpkm_cv_sum = sum([cv_list[i]*math.log(fpkm_list[i]+1,2) for i in range(len(cv_list))])
+    logfpkm_cv_sum = sum([id_list[i]*math.log(fpkm_list[i]+1,2) for i in range(len(id_list))])
     logfpkm_sum = sum([math.log(f+1,2) for f in fpkm_list])
     logfpkm_mean = logfpkm_cv_sum / logfpkm_sum
 
