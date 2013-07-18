@@ -21,6 +21,7 @@ def main():
     usage = 'usage: %prog [options] <hg19|mm9> <bam>'
     parser = OptionParser(usage)
     parser.add_option('-p', dest='paired', action='store_true', default=False, help='Paired end reads, so split intersects by XS tag and strand [Default: %default]')
+    parser.add_option('-t', dest='title', default='', help='Plot title [Default: %default]')
     parser.add_option('-u', dest='unstranded', action='store_true', default=False, help='Unstranded reads, so count intergenic and renormalize to lessen the impact of double counting [Default: %default]')
     (options,args) = parser.parse_args()
 
@@ -150,7 +151,8 @@ def main():
         ggplot2.geom_bar(stat='identity', width=1) + \
         ggplot2.scale_x_discrete('') + \
         ggplot2.scale_y_continuous('Aligned reads') + \
-        ggplot2.scale_fill_discrete('Annotation')
+        ggplot2.scale_fill_discrete('Annotation') + \
+        ggplot2.opts(title=options.title)
 
     # plot to file
     grdevices.pdf(file='annotation_reads_bar.pdf')
@@ -165,7 +167,8 @@ def main():
         ggplot2.coord_polar(theta='y') + \
         ggplot2.scale_x_discrete('') + \
         ggplot2.scale_y_continuous('Aligned reads') + \
-        ggplot2.scale_fill_discrete('Annotation')
+        ggplot2.scale_fill_discrete('Annotation') + \
+        ggplot2.opts(title=options.title)
 
     # plot to file
     grdevices.pdf(file='annotation_reads_pie.pdf')
@@ -183,7 +186,8 @@ def main():
         ggplot2.geom_bar(stat='identity', width=1) + \
         ggplot2.scale_x_discrete('') + \
         ggplot2.scale_y_continuous('Length-normalized aligned reads') + \
-        ggplot2.scale_fill_discrete('Annotation')
+        ggplot2.scale_fill_discrete('Annotation') + \
+        ggplot2.opts(title=options.title)
 
     # plot to file
     grdevices.pdf(file='annotation_reads_norm_bar.pdf')
@@ -198,7 +202,8 @@ def main():
         ggplot2.coord_polar(theta='y') + \
         ggplot2.scale_x_discrete('') + \
         ggplot2.scale_y_continuous('Length-normalized aligned reads') + \
-        ggplot2.scale_fill_discrete('Annotation')
+        ggplot2.scale_fill_discrete('Annotation') + \
+        ggplot2.opts(title=options.title)
 
     # plot to file
     grdevices.pdf(file='annotation_reads_norm_pie.pdf')
@@ -226,7 +231,8 @@ def main():
         ggplot2.geom_bar(stat='identity', width=1) + \
         ggplot2.scale_x_discrete('') + \
         ggplot2.scale_y_continuous('Length-normalized aligned reads') + \
-        ggplot2.scale_fill_discrete('Annotation')
+        ggplot2.scale_fill_discrete('Annotation') + \
+        ggplot2.opts(title=options.title)
 
     # plot to file
     grdevices.pdf(file='annotation_reads_normr_bar.pdf')
@@ -241,7 +247,8 @@ def main():
         ggplot2.coord_polar(theta='y') + \
         ggplot2.scale_x_discrete('') + \
         ggplot2.scale_y_continuous('Length-normalized aligned reads') + \
-        ggplot2.scale_fill_discrete('Annotation')
+        ggplot2.scale_fill_discrete('Annotation') + \
+        ggplot2.opts(title=options.title)
 
     # plot to file
     grdevices.pdf(file='annotation_reads_normr_pie.pdf')
