@@ -437,6 +437,7 @@ if __name__ == '__main__':
         fastq_rand(int(sys.argv[3]), sys.argv[2])
 
     else:
-        print 'Usage: ./dna.py --comp <seq_file>'
-        print 'Usage: ./dna.py --rc <seq>'
-        print 'Usage: ./dna.py --rand <seq_file> <num>'
+        print 'Usage: dna.py --comp <seq_file>'
+        print 'Usage: dna.py --rc <seq>'
+        print 'Usage: dna.py --rand <seq_file> <num>'
+        print 'Usage: dna.py --kmers <k> <seq_file>'
