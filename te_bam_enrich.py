@@ -25,7 +25,7 @@ def main():
     usage = 'usage: %prog [options] <bam file>'
     parser = OptionParser(usage)
     parser.add_option('-c', dest='control_bam_file', help='Control BAM file to paramterize null distribution [Default: %default]')
-    parser.add_option('-g', dest='gff_file', help='Filter the TEs by overlap with genes in the given gff file [Default: %default]')
+    parser.add_option('-g', dest='filter_gff', help='Filter the TEs by overlap with genes in the given gff file [Default: %default]')
     parser.add_option('-m', dest='mapq', default=False, action='store_true', help='Consider only reads with mapq>0 [Default: %default]')
     parser.add_option('-r', dest='repeats_gff', default='%s/research/common/data/genomes/hg19/annotation/repeatmasker/hg19.fa.out.tp.gff' % os.environ['HOME'])
     (options,args) = parser.parse_args()
@@ -39,21 +39,24 @@ def main():
     # GFF filter
     ############################################
     # filter TEs and read alignments by gff file
-    if options.gff_file:
+    if options.filter_gff:
+        filter_merged_bed_fd, filter_merged_bed_file = tempfile.mkstemp()
+        subprocess.call('sortBed -i %s | mergeBed -i - > %s' % (options.filter_gff, filter_merged_bed_file), shell=True)
+
         # filter TE GFF
         te_gff_fd, te_gff_file = tempfile.mkstemp(dir='%s/research/scratch/temp' % os.environ['HOME'])
-        subprocess.call('intersectBed -a %s -b %s > %s' % (options.repeats_gff, options.gff_file, te_gff_file), shell=True)
+        subprocess.call('intersectBed -a %s -b %s > %s' % (options.repeats_gff, filter_merged_bed_file, te_gff_file), shell=True)
         options.repeats_gff = te_gff_file
 
         # filter BAM
         bam_gff_fd, bam_gff_file = tempfile.mkstemp(dir='%s/research/scratch/temp' % os.environ['HOME'])
-        subprocess.call('intersectBed -abam %s -b %s > %s' % (bam_file, options.gff_file, bam_gff_file), shell=True)
+        subprocess.call('intersectBed -abam %s -b %s > %s' % (bam_file, filter_merged_bed_file, bam_gff_file), shell=True)
         bam_file = bam_gff_file
 
         # filter control BAM
         if options.control_bam_file:
             cbam_gff_fd, cbam_gff_file = tempfile.mkstemp(dir='%s/research/scratch/temp' % os.environ['HOME'])
-            subprocess.call('intersectBed -abam %s -b %s > %s' % (options.control_bam_file, options.gff_file, cbam_gff_file), shell=True)
+            subprocess.call('intersectBed -abam %s -b %s > %s' % (options.control_bam_file, filter_merged_bed_file, cbam_gff_file), shell=True)
             options.control_bam_file = cbam_gff_file
 
     ############################################
@@ -85,8 +88,8 @@ def main():
     # lengths
     ############################################
     # compute size of search space
-    if options.gff_file:
-        genome_length = count_gff(options.gff_file)
+    if options.filter_gff:
+        genome_length = count_bed(filter_merged_bed_file)
     else:
         genome_length = count_hg19()
 
@@ -132,7 +135,9 @@ def main():
     ############################################
     # clean
     ############################################
-    if options.gff_file:
+    if options.filter_gff:
+        os.close(filter_merged_bed_fd)
+        os.remove(filter_merged_bed_file)
         os.close(te_gff_fd)
         os.remove(te_gff_file)
         os.close(bam_gff_fd)
@@ -149,19 +154,16 @@ def main():
 
 
 ################################################################################
-# count_gff
+# count_bed
 #
-# Count the number of bp in the limiting GFF file.
+# Count the number of bp in the filter merged BED file.
 ################################################################################
-def count_gff(gff_file):
-    gff_bp = 0
-    p = subprocess.Popen('mergeBed -i %s' % gff_file, shell=True, stdout=subprocess.PIPE)
-    for line in p.stdout:
+def count_bed(bed_file):
+    bp = 0    
+    for line in open(bed_file):
         a = line.split()
-        gff_bp += int(a[2]) - int(a[1])
-    p.communicate()
-
-    return gff_bp
+        bp += int(a[2]) - int(a[1])
+    return bp
 
 
 ################################################################################
@@ -222,7 +224,7 @@ def count_te_fragments(bam_file, te_gff):
     proc = subprocess.Popen('intersectBed -split -wo -bed -abam %s -b %s' % (bam_file, te_gff), shell=True, stdout=subprocess.PIPE)
     for line in proc.stdout:
         a = line.split('\t')
-        te_kv = gff.gtf_kv(a[14])
+        te_kv = gff.gtf_kv(a[20])
 
         if is_paired:
             read_inc = 0.5/multi_maps.get(a[3],1.0)
@@ -282,6 +284,7 @@ def measure_te(rm_file):
         repeat_bp[('*','*')] = repeat_bp.get(('*','*'),0) + length
 
     return repeat_bp
+
 
 ################################################################################
 # te_target_size

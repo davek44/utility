@@ -3,6 +3,8 @@ from optparse import OptionParser
 from scipy.stats import binom, norm
 import gzip, os, subprocess, sys, tempfile
 import fdr, gff, stats
+from te_bam_enrich import count_hg19
+from te_gff_enrich import feature_stats
 
 ################################################################################
 # te_gff_ovl_enrich.py
@@ -11,6 +13,10 @@ import fdr, gff, stats
 #
 # Notes:
 #  -My counting assumes that the GFF/BED features do not overlap.
+#
+# WARNING:
+#  -I got confused and made some changes to make this look more like te_gff_enrich
+#   and it's possible I broke it. I.e. the changes aren't tested.
 ################################################################################
 
 home_dir = os.environ['HOME']
@@ -21,6 +27,7 @@ home_dir = os.environ['HOME']
 def main():
     usage = 'usage: %prog [options] <feature gff/bed>'
     parser = OptionParser(usage)
+    parser.add_option('-g', dest='gff_file', help='Filter the TEs by overlap with genes in the given gff file [Default: %default]')
     parser.add_option('-r', dest='repeats_gff', default='%s/research/common/data/genomes/hg19/annotation/repeatmasker/hg19.fa.out.tp.gff' % home_dir)
     parser.add_option('-n', dest='null_iterations', type=int, default=50, help='Number of shuffles to perform to estimate null distribution [Default: %default]')
     (options,args) = parser.parse_args()
@@ -28,23 +35,47 @@ def main():
     if len(args) != 1:
         parser.error('Must provide a gff file for the feature of interest.')
     else:
-        feature_gff = args[0]        
+        feature_gff = args[0]
 
-    # count genomic bp
-    genome_bp = count_hg19()
+    ############################################
+    # GFF filter
+    ############################################
+    # filter TEs and features by gff file
+    if options.gff_file:
+        # filter TE GFF
+        te_gff_fd, te_gff_file = tempfile.mkstemp()
+        subprocess.call('intersectBed -a %s -b %s > %s' % (options.repeats_gff, options.gff_file, te_gff_file), shell=True)
+        options.repeats_gff = te_gff_file
 
-    # count feature bp
-    if feature_gff[-3:] == 'bed':
-        feature_bp = count_bed(feature_gff)
+        # filter feature GFF
+        feature_gff_gff_fd, feature_gff_gff_file = tempfile.mkstemp()
+        subprocess.call('intersectBed -s -u -f 0.5 -a %s -b %s > %s' % (feature_gff, options.gff_file, feature_gff_gff_file), shell=True)
+        feature_gff = feature_gff_gff_file
+
+    ############################################
+    # lengths
+    ############################################
+    # compute size of search space
+    if options.gff_file:
+        genome_length = count_gff(options.gff_file)
     else:
-        feature_bp = count_gff(feature_gff)
+        genome_length = count_hg19()
+
+    # compute feature length
+    feature_len, feature_num = feature_stats(feature_gff)
+
+    if feature_num == 0:
+        print >> sys.stderr, 'Zero features'
+        exit()
 
     # hash counted repeat genomic bp
     te_in = open(options.repeats_gff)
     genome_te_bp = hash_te(te_in)
     te_in.close()
 
+    ############################################
     # convert feature gff to bed
+    ############################################
     if feature_gff[-3:] == 'gtf':
         feature_bed_fd, feature_bed_file = tempfile.mkstemp()
         subprocess.call('gtf2bed.py %s > %s' % (feature_gff,feature_bed_file), shell=True)
@@ -88,8 +119,8 @@ def main():
     lines = []
     p_vals = []
     for te in genome_te_bp:
-        feature_freq = float(te_bp.get(te,0))/feature_bp
-        genome_freq = float(genome_te_bp[te])/genome_bp
+        feature_freq = float(te_bp.get(te,0))/feature_len
+        genome_freq = float(genome_te_bp[te])/genome_length
         fold_change = feature_freq / genome_freq
 
         #print te, stats.mean(te_null_bp[te]), stats.sd(te_null_bp[te])
@@ -122,30 +153,12 @@ def main():
     if feature_gff[-3:] != 'bed':
         os.close(feature_bed_fd)
         os.remove(feature_bed_file)
+    if options.gff_file:
+        os.close(te_gff_fd)
+        os.remove(te_gff_file)
+        os.close(feature_gff_gff_fd)
+        os.remove(feature_gff_gff_file)
 
-
-################################################################################
-# count_hg19
-#
-# Count the number of bp in hg19 where TEs could be.
-################################################################################
-def count_hg19():
-    chrom_sizes_file = '%s/research/common/data/genomes/hg19/assembly/human.hg19.genome' % home_dir
-    gap_bed_file = '%s/research/common/data/genomes/hg19/assembly/hg19_gaps.bed' % home_dir
-    valid_chrs = ['chr%d' % c for c in range(1,23)] + ['chrX','chrY']
-
-    genome_bp = 0
-    for line in open(chrom_sizes_file):        
-        a = line.split()
-        if len(a) > 0 and a[0] in valid_chrs:
-            genome_bp += int(a[1])
-
-    for line in open(gap_bed_file):
-        a = line.split()
-        if a[0] in valid_chrs:
-            genome_bp -= int(a[2])-int(a[1])
-
-    return genome_bp
 
 
 ################################################################################

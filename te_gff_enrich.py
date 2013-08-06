@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from optparse import OptionParser
 from scipy.stats import binom, norm
-from te_bam_enrich import te_target_size, count_hg19, count_gff
+from te_bam_enrich import te_target_size, count_hg19, count_bed
 import gzip, os, subprocess, sys, tempfile
 import fdr, gff, stats
 
@@ -20,7 +20,7 @@ import fdr, gff, stats
 def main():
     usage = 'usage: %prog [options] <feature gff>'
     parser = OptionParser(usage)
-    parser.add_option('-g', dest='gff_file', help='Filter the TEs by overlap with genes in the given gff file [Default: %default]')
+    parser.add_option('-g', dest='filter_gff', help='Filter the TEs by overlap with genes in the given gff file [Default: %default]')
     parser.add_option('-r', dest='repeats_gff', default='%s/research/common/data/genomes/hg19/annotation/repeatmasker/hg19.fa.out.tp.gff' % os.environ['HOME'])
     (options,args) = parser.parse_args()
 
@@ -33,23 +33,26 @@ def main():
     # GFF filter
     ############################################
     # filter TEs and features by gff file
-    if options.gff_file:
+    if options.filter_gff:
+        filter_merged_bed_fd, filter_merged_bed_file = tempfile.mkstemp()
+        subprocess.call('sortBed -i %s | mergeBed -i - > %s' % (options.filter_gff, filter_merged_bed_file), shell=True)
+
         # filter TE GFF
         te_gff_fd, te_gff_file = tempfile.mkstemp()
-        subprocess.call('intersectBed -a %s -b %s > %s' % (options.repeats_gff, options.gff_file, te_gff_file), shell=True)
+        subprocess.call('intersectBed -a %s -b %s > %s' % (options.repeats_gff, filter_merged_bed_file, te_gff_file), shell=True)
         options.repeats_gff = te_gff_file
 
         # filter feature GFF
         feature_gff_gff_fd, feature_gff_gff_file = tempfile.mkstemp()
-        subprocess.call('intersectBed -a %s -b %s > %s' % (feature_gff, options.gff_file, feature_gff_gff_file), shell=True)
+        subprocess.call('intersectBed -u -f 0.5 -a %s -b %s > %s' % (feature_gff, filter_merged_bed_file, feature_gff_gff_file), shell=True)
         feature_gff = feature_gff_gff_file
 
     ############################################
     # lengths
     ############################################
     # compute size of search space
-    if options.gff_file:
-        genome_length = count_gff(options.gff_file)
+    if options.filter_gff:
+        genome_length = count_bed(filter_merged_bed_file)
     else:
         genome_length = count_hg19()
 
@@ -104,7 +107,7 @@ def main():
         p_vals.append(p_val)
 
         cols = (te[0], te[1], te_lengths[te], te_count, exp_count, fold_change, p_val)
-        lines.append('%-18s %-18s %8d %11.2e %11.2e %9.2f %10.2e' % cols)
+        lines.append('%-18s %-18s %8d %8d %8.1f %8.2f %10.2e' % cols)
 
     # correct for multiple hypotheses correction
     q_vals = fdr.ben_hoch(p_vals)
@@ -115,7 +118,9 @@ def main():
     ############################################
     # clean
     ############################################
-    if options.gff_file:
+    if options.filter_gff:
+        os.close(filter_merged_bed_fd)
+        os.remove(filter_merged_bed_file)
         os.close(te_gff_fd)
         os.remove(te_gff_file)
         os.close(feature_gff_gff_fd)
