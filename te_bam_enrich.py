@@ -3,7 +3,7 @@ from optparse import OptionParser
 from scipy.stats import binom
 import gzip, os, random, subprocess, sys, tempfile
 import pysam
-import gff, stats
+import bedtools, gff, stats
 
 ################################################################################
 # te_bam_enrich.py
@@ -50,13 +50,13 @@ def main():
 
         # filter BAM
         bam_gff_fd, bam_gff_file = tempfile.mkstemp(dir='%s/research/scratch/temp' % os.environ['HOME'])
-        subprocess.call('intersectBed -abam %s -b %s > %s' % (bam_file, filter_merged_bed_file, bam_gff_file), shell=True)
+        bedtools.abam_f1(bam_file, filter_merged_bed_file, bam_gff_file)
         bam_file = bam_gff_file
 
         # filter control BAM
         if options.control_bam_file:
             cbam_gff_fd, cbam_gff_file = tempfile.mkstemp(dir='%s/research/scratch/temp' % os.environ['HOME'])
-            subprocess.call('intersectBed -abam %s -b %s > %s' % (options.control_bam_file, filter_merged_bed_file, cbam_gff_file), shell=True)
+            bedtools.abam_f1(options.control_bam_file, filter_merged_bed_file, cbam_gff_file)
             options.control_bam_file = cbam_gff_file
 
     ############################################
@@ -98,7 +98,10 @@ def main():
 
     # hash counted repeat genomic bp
     #te_lengths = measure_te(options.repeats_gff)
-    te_lengths = te_target_size(options.repeats_gff, read_len)
+    if options.filter_gff:
+        te_lengths = te_target_size_bed(options.repeats_gff, filter_merged_bed_file, read_len)
+    else:
+        te_lengths = te_target_size(options.repeats_gff, read_len)
 
     ############################################
     # count TE fragments
@@ -343,6 +346,67 @@ def te_target_size(te_gff, read_len):
         te_bp[(arep,afam)] = te_bp.get((arep,afam),0) + aend - astart + 1 + read_len
 
     return te_bp
+
+
+################################################################################
+# te_target_size_bed
+#
+# Measure the overlap target area for each TE within each BED interval for the
+# given read length.
+################################################################################
+def te_target_size_bed(te_gff, ref_bed, read_len):
+    # hash TE intervals by BED region
+    bed_te_intervals = {}
+    p = subprocess.Popen('intersectBed -wo -a %s -b %s' % (ref_bed, te_gff), shell=True, stdout=subprocess.PIPE)
+    for line in p.stdout:
+        a = line.split('\t')
+
+        bchrom = a[0]
+        bstart = int(a[1])
+        bend = int(a[2])
+        bid = (bchrom,bstart)
+
+        rep_kv = gff.gtf_kv(a[11])
+        rep = rep_kv['repeat']
+        fam = rep_kv['family']
+
+        tstart = int(a[6])
+        tend = int(a[7])
+
+        ostart = max(bstart, tstart)
+        oend = min(bend, tend)
+
+        if not bid in bed_te_intervals:
+            bed_te_intervals[bid] = {}
+        bed_te_intervals[bid].setdefault((rep,fam),[]).append((ostart,oend))
+        bed_te_intervals[bid].setdefault(('*',fam),[]).append((ostart,oend))
+        bed_te_intervals[bid].setdefault(('*','*'),[]).append((ostart,oend))        
+
+    p.communicate()
+
+    target_size = {}
+    for bid in bed_te_intervals:
+        bchrom, bstart = bid        
+
+        for te in bed_te_intervals[bid]:
+            bt_intervals = bed_te_intervals[bid][te]
+            bt_intervals.sort()
+
+            # merge intervals, limited at the start by the BED region's start
+            merged_intervals = [(max(bstart, bt_intervals[0][0]-read_len+1), bt_intervals[0][1])]
+            for i in range(1,len(bt_intervals)):
+                start1, end1 = merged_intervals[-1]
+                start2, end2 = bt_intervals[i]
+
+                if end1+1 < start2-read_len+1:
+                    merged_intervals.append((start2-read_len+1,end2))
+                else:
+                    merged_intervals[-1] = (start1, end2)
+
+            # sum
+            target_size[te] = target_size.get(te,0) + sum([e-s+1 for (s,e) in merged_intervals])
+
+    return target_size
 
 
 ################################################################################
