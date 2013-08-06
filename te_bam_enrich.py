@@ -12,10 +12,13 @@ import bedtools, gff, stats
 # element families.
 #
 # Slight bug:
-# To intersect the BAM file with the repeats GFF, I need to use the -split
-# option to avoid intron intersections. However, then it splits each spliced
-# read so the same read could be counted twice if it intersects at both
-# junctions. I doubt this happens much.
+# -To intersect the BAM file with the repeats GFF, I need to use the -split
+#   option to avoid intron intersections. However, then it splits each spliced
+#   read so the same read could be counted twice if it intersects at both
+#   junctions. I doubt this happens much.
+# -To filter the BAM file with a GFF, I require the read be fully within
+#   the feature, but I need to relax this requirement for spliced reads
+#   because otherwise their entire span is considered.
 ################################################################################
 
 ################################################################################
