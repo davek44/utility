@@ -1,12 +1,8 @@
 #!/usr/bin/env python
 from optparse import OptionParser
-import os, re, shutil, subprocess
+import math, os, re, shutil, subprocess
 import pysam
-from rpy2.robjects.packages import importr
-import rpy2.robjects as ro
-import rpy2.robjects.lib.ggplot2 as ggplot2
-
-grdevices = importr('grDevices')
+import annotation_pie, ggplot
 
 ################################################################################
 # annotation_pie_gff.py
@@ -21,8 +17,9 @@ grdevices = importr('grDevices')
 def main():
     usage = 'usage: %prog [options] <hg19|mm9> <gff>'
     parser = OptionParser(usage)
-    parser.add_option('-t','--transcriptome', dest='transcriptome_only', default=False, action='store_true', help='Consider the transcriptome only, i.e. no intergenic class [Default: %default]')
-    parser.add_option('-y', '--ylabel', dest='ylabel', default='Feature nt', help='Y-axis label [Default: %default]')
+    parser.add_option('-a', dest='annotations', default='cds,utrs_3p,utrs_5p,lncrna,introns', help='Comma-separated list of annotation classes to include [Default: %default]')
+    parser.add_option('-o', dest='output_prefix', default='annotation', help='Output file prefix [Default: %default]')
+    parser.add_option('-t', dest='title', default='Title', help='Plot title [Default: %default]')
     (options,args) = parser.parse_args()
 
     if len(args) == 2:
@@ -32,162 +29,93 @@ def main():
         parser.error(usage)
 
     if genome == 'hg19':
-        annotation_dir = '/n/rinn_data1/indexes/human/hg19/transcriptome/dk_pie'
-        assembly_dir = '/n/home03/dkelley/research/common/data/genomes/hg19/assembly'
+        annotation_dir = '%s/research/common/data/genomes/hg19/annotation/gencode_v15/pie' % os.environ['HOME']
+        assembly_dir = '%s/research/common/data/genomes/hg19/assembly' % os.environ['HOME']
     elif genome == 'mm9':
         annotation_dir = '/n/rinn_data1/indexes/mouse/mm9/annotations/dk_pie'
-        assembly_dir = '/n/home03/dkelley/research/common/data/genomes/mm9/assembly'
+        assembly_dir = '%s/research/common/data/genomes/mm9/assembly' % os.environ['HOME']
     else:
         parser.error('Genome must specify hg19 or mm9.')
 
-    # count features
-    gff_count = 0
-    for line in open(gff_file):
-        a = line.split('\t')
-        gff_count += int(a[4]) - int(a[3]) + 1
+    annotation_classes = set(options.annotations.split(','))
+
+    ############################################
+    # annotation lengths
+    ############################################
+    genome_length = annotation_pie.count_genome(assembly_dir)
+
+    annotation_lengths = {}
+    for ann in annotation_classes:
+        if ann != 'intergenic':
+            annotation_bed = '%s/%s.bed' % (annotation_dir,ann)
+            if os.path.isfile(annotation_bed):
+                annotation_lengths[ann] = annotation_pie.annotation_length(annotation_bed, assembly_dir)
+            else:
+                parser.error('Cannot find annotation BED %s' % annotation_bed)
+                
+    if 'intergenic' in annotation_classes:
+        other_annotations_summed = sum(annotation_lengths.values())
+        annotation_lengths['intergenic'] = genome_length - other_annotations_summed
+
+    ############################################
+    # annotation feature counts
+    ############################################
+    genome_features = int(subprocess.check_output('wc -l %s' % gff_file, shell=True).split()[0])
+
+    annotation_features = {}
+    for ann in annotation_classes:
+        if ann != 'intergenic':
+            annotation_bed = '%s/%s.bed' % (annotation_dir,ann)
+            annotation_features[ann] = count_intersection(gff_file, annotation_bed)
+
+    if 'intergenic' in annotation_classes:
+        other_annotations_summed = sum(annotation_features.values())
+        annotation_features['intergenic'] = genome_reads - other_annotations_summed        
     
-    # CDS
-    cds_length = annotation_length('%s/cds.bed' % annotation_dir, assembly_dir)
-    cds_count = count_intersection(gff_file, '%s/cds.bed' % annotation_dir)
-    cds_count_norm = cds_count / float(cds_length)
+    ############################################
+    # table
+    ###########################################
+    annotation_labels = {'rrna':'rRNA', 'smallrna':'smallRNA', 'cds':'CDS', 'utrs_3p':'3\'UTR', 'utrs_5p':'5\'UTR', 'pseudogene':'Pseudogene', 'lncrna':'lncRNA', 'introns':'Introns', 'intergenic':'Intergenic'}
 
-    # 3' UTR
-    utr3_length = annotation_length('%s/utrs_3p.bed' % annotation_dir, assembly_dir)
-    utr3_count = count_intersection(gff_file, '%s/utrs_3p.bed' % annotation_dir)
-    utr3_count_norm = utr3_count / float(utr3_length)
+    features_sum = float(sum(annotation_features.values()))
+    lengths_sum = float(sum(annotation_lengths.values()))
 
-    # 5' UTR
-    utr5_length = annotation_length('%s/utrs_5p.bed' % annotation_dir, assembly_dir)
-    utr5_count = count_intersection(gff_file, '%s/utrs_5p.bed' % annotation_dir)
-    utr5_count_norm = utr5_count / float(utr5_length)
+    annotation_ratio = {}
 
-    # lncRNAs
-    lnc_length = annotation_length('%s/lncrna.bed' % annotation_dir, assembly_dir)
-    lnc_count = count_intersection(gff_file, '%s/lncrna.bed' % annotation_dir)
-    lnc_count_norm = lnc_count / float(lnc_length)
+    counts_out = open('%s_counts.txt' % options.output_prefix, 'w')
+    for ann in annotation_classes:
+        feature_pct = annotation_features[ann]/features_sum
+        length_pct = annotation_lengths[ann]/lengths_sum
 
-    # intersect introns
-    intron_length = annotation_length('%s/introns.bed' % annotation_dir, assembly_dir)
-    intron_count = count_intersection(gff_file, '%s/introns.bed' % annotation_dir)
-    intron_count_norm = intron_count / float(intron_length)
+        if feature_pct > 0:
+            annotation_ratio[ann] = math.log(feature_pct/length_pct,2)
+        else:
+            annotation_ratio[ann] = math.log((1+annotation_features[ann])/(1+features_sum),2)
 
-    # intergenic remains
-    if not options.transcriptome_only:
-        intergenic_length = genome_length(assembly_dir) - cds_length - utr3_length - utr5_length - lnc_length - intron_length
-        intergenic_count = gff_count - cds_count - utr3_count - utr5_count - lnc_count - intron_count
-        intergenic_count_norm = intergenic_count / float(intergenic_length)
-
-    # print counts to file
-    counts_out = open('counts.txt','w')
-    print >> counts_out, 'CDS        %10d %8d %9.2e' % (cds_length, cds_count, cds_count_norm)
-    print >> counts_out, "5'UTR      %10d %8d %9.2e" % (utr5_length, utr5_count, utr5_count_norm)
-    print >> counts_out, "3'UTR      %10d %8d %9.2e" % (utr3_length, utr3_count, utr3_count_norm)
-    print >> counts_out, 'lncRNA     %10d %8d %9.2e' % (lnc_length, lnc_count, lnc_count_norm)
-    print >> counts_out, 'Intron     %10d %8d %9.2e' % (intron_length, intron_count, intron_count_norm)
-    if not options.transcriptome_only:
-        print >> counts_out, 'Intergenic %10d %8d %9.2e' % (intergenic_length, intergenic_count, intergenic_count_norm)
+        cols = (annotation_labels[ann], annotation_features[ann], feature_pct, length_pct, annotation_ratio[ann])
+        print >> counts_out, '%10s  %8d  %6.4f  %6.4f  %5.2f' % cols
     counts_out.close()
 
-    # construct data frame
-    if options.transcriptome_only:
-        dummy_r = ro.StrVector(['.']*5)
-        counts_r = ro.IntVector([cds_count, utr3_count, utr5_count, lnc_count, intron_count])
-        annotations_r = ro.StrVector(['CDS', '3\'UTR', '5\'UTR', 'lncRNA', 'Intron'])
-    else:
-        dummy_r = ro.StrVector(['.']*6)
-        counts_r = ro.IntVector([cds_count, utr3_count, utr5_count, lnc_count, intron_count, intergenic_count])
-        annotations_r = ro.StrVector(['CDS', '3\'UTR', '5\'UTR', 'lncRNA', 'Intron', 'Intergenic'])
-    df = ro.DataFrame({'dummy':dummy_r, 'count':counts_r, 'annotation':annotations_r})
+    ############################################
+    # pie chart
+    ############################################
+    pie_df = {'dummy':[], 'annotation':[], 'count':[]}
+    for ann in annotation_classes:
+        pie_df['dummy'].append('.')
+        pie_df['annotation'].append(annotation_labels[ann])
+        pie_df['count'].append(annotation_features[ann])
 
-    # plot bar
-    gp = ggplot2.ggplot(df) + \
-        ggplot2.aes_string(x='dummy', y='count', fill='annotation') + \
-        ggplot2.geom_bar(stat='identity', width=1) + \
-        ggplot2.scale_x_discrete('') + \
-        ggplot2.scale_y_continuous(options.ylabel) + \
-        ggplot2.scale_fill_discrete('Annotation')
+    ggplot.plot('%s/annotation_pie_pie.r'%os.environ['GGPLOT'], pie_df, [options.title, '%s_pie.pdf'%options.output_prefix])
 
-    # plot to file
-    grdevices.pdf(file='annotation_gff_bar.pdf')
-    gp.plot()
-    grdevices.dev_off()
+    ############################################
+    # read:length ratio
+    ############################################
+    ratio_df = {'annotation':[], 'ratio':[]}
+    for ann in annotation_classes:
+        ratio_df['annotation'].append(annotation_labels[ann])
+        ratio_df['ratio'].append(annotation_ratio[ann])
 
-    # plot pie
-    gp = ggplot2.ggplot(df) + \
-        ggplot2.aes_string(x='dummy', y='count', fill='annotation') + \
-        ggplot2.geom_bar(stat='identity', width=1) + \
-        ggplot2.coord_polar(theta='y') + \
-        ggplot2.scale_x_discrete('') + \
-        ggplot2.scale_y_continuous(options.ylabel) + \
-        ggplot2.scale_fill_discrete('Annotation')
-
-    # plot to file
-    grdevices.pdf(file='annotation_gff_pie.pdf')
-    gp.plot()
-    grdevices.dev_off()
-
-    # normalize
-    if options.transcriptome_only:
-        counts_r = ro.FloatVector([cds_count_norm, utr3_count_norm, utr5_count_norm, lnc_count_norm, intron_count_norm])
-    else:
-        counts_r = ro.FloatVector([cds_count_norm, utr3_count_norm, utr5_count_norm, lnc_count_norm, intron_count_norm, intergenic_count_norm])
-    df = ro.DataFrame({'dummy':dummy_r, 'count':counts_r, 'annotation':annotations_r})
-
-    # plot norm bar
-    gp = ggplot2.ggplot(df) + \
-        ggplot2.aes_string(x='dummy', y='count', fill='annotation') + \
-        ggplot2.geom_bar(stat='identity', width=1) + \
-        ggplot2.scale_x_discrete('') + \
-        ggplot2.scale_y_continuous('Length-normalized %s' % options.ylabel.lower()) + \
-        ggplot2.scale_fill_discrete('Annotation')
-
-    # plot to file
-    grdevices.pdf(file='annotation_gff_norm_bar.pdf')
-    gp.plot()
-    grdevices.dev_off()
-
-    # plot norm pie
-    gp = ggplot2.ggplot(df) + \
-        ggplot2.aes_string(x='dummy', y='count', fill='annotation') + \
-        ggplot2.geom_bar(stat='identity', width=1) + \
-        ggplot2.coord_polar(theta='y') + \
-        ggplot2.scale_x_discrete('') + \
-        ggplot2.scale_y_continuous('Length-normalized %s' % options.ylabel.lower()) + \
-        ggplot2.scale_fill_discrete('Annotation')
-
-    # plot to file
-    grdevices.pdf(file='annotation_gff_norm_pie.pdf')
-    gp.plot()
-    grdevices.dev_off()
-
-
-################################################################################
-# annotation_length
-#
-# Input
-#  bed_file: Annotation BED file
-#
-# Output
-#  alength:  Summed lengths of the annotations.
-################################################################################
-def annotation_length(bed_file, assembly_dir):
-    if assembly_dir.find('hg19') != -1:
-        gaps_file = '%s/hg19_gaps.bed' % assembly_dir
-    elif assembly_dir.find('mm9') != -1:
-        gaps_file = '%s/mm9_gaps.bed' % assembly_dir
-    else:
-        print >> sys.stderr, 'Bad assembly directory'
-        exit(1)
-
-    alength = 0
-    
-    p = subprocess.Popen('subtractBed -a %s -b %s' % (bed_file,gaps_file), shell=True, stdout=subprocess.PIPE)
-    for line in p.stdout:
-        a = line.split('\t')
-        alength += int(a[2]) - int(a[1])
-    p.communicate()
-    
-    return alength
+    ggplot.plot('%s/annotation_pie_ratios.r'%os.environ['GGPLOT'], ratio_df, [options.title, '%s_ratios.pdf'%options.output_prefix])
 
 
 ################################################################################
@@ -201,50 +129,12 @@ def annotation_length(bed_file, assembly_dir):
 #  count:    The number of nt overlapping the annotation in the BED file.
 ################################################################################
 def count_intersection(gff_file, bed_file):
-    # intersect
-    p = subprocess.Popen('intersectBed -a %s -b %s' % (gff_file,bed_file), shell=True, stdout=subprocess.PIPE)
-
-    # count
     count = 0
+    p = subprocess.Popen('intersectBed -s -u -f 0.5 -a %s -b %s' % (gff_file,bed_file), shell=True, stdout=subprocess.PIPE)
     for line in p.stdout:
-        a = line.split('\t')
-        count += int(a[4]) - int(a[3])
-
+        count += 1
+    p.communicate()
     return count
-
-################################################################################
-# genome_length
-#
-# Output
-#  glength: Length of the human genome assembly minus gaps.
-################################################################################
-def genome_length(assembly_dir):
-    if assembly_dir.find('hg19') != -1:
-        chrom_file = '%s/human.hg19.genome' % assembly_dir
-        gaps_file = '%s/hg19_gaps.bed' % assembly_dir
-    elif assembly_dir.find('mm9') != -1:
-        chrom_file = '%s/mouse.mm9.genome' % assembly_dir
-        gaps_file = '%s/mm9_gaps.bed' % assembly_dir
-    else:
-        print >> sys.stderr, 'Bad assembly directory'
-        exit(1)
-        
-    # count chromosome sizes
-    glength = 0
-    for line in open(chrom_file):
-        a = line.split()
-        chrom = a[0]
-        if not chrom.startswith('chrUn') and chrom.find('random') == -1 and chrom.find('hap') == -1:
-            glength += int(a[1])
-            
-    # subtract gaps
-    for line in open(gaps_file):
-        a = line.split()
-        chrom = a[0]
-        if not chrom.startswith('chrUn') and chrom.find('random') == -1 and chrom.find('hap') == -1:
-            glength -= int(a[2]) - int(a[1])
-
-    return glength
 
 
 ################################################################################
