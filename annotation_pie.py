@@ -1,15 +1,11 @@
 #!/usr/bin/env python
 from optparse import OptionParser
-import os, re, shutil, subprocess, tempfile
+import math, os, re, subprocess, tempfile
 import pysam
-from rpy2.robjects.packages import importr
-import rpy2.robjects as ro
-import rpy2.robjects.lib.ggplot2 as ggplot2
-
-grdevices = importr('grDevices')
+import ggplot
 
 ################################################################################
-# annotation_pie.py
+# annotation_bars.py
 #
 # Count aligned reads to various annotation classes and make pie charts.
 ################################################################################
@@ -20,8 +16,10 @@ grdevices = importr('grDevices')
 def main():
     usage = 'usage: %prog [options] <hg19|mm9> <bam>'
     parser = OptionParser(usage)
+    parser.add_option('-a', dest='annotations', default='rrna,smallrna,cds,utrs_3p,utrs_5p,pseudogene,lncrna,introns,intergenic', help='Comma-separated list of annotation classes to include [Default: %default]')
+    parser.add_option('-o', dest='output_prefix', default='annotation', help='Output file prefix [Default: %default]')
     parser.add_option('-p', dest='paired', action='store_true', default=False, help='Paired end reads, so split intersects by XS tag and strand [Default: %default]')
-    parser.add_option('-t', dest='title', default='', help='Plot title [Default: %default]')
+    parser.add_option('-t', dest='title', default='Title', help='Plot title [Default: %default]')
     parser.add_option('-u', dest='unstranded', action='store_true', default=False, help='Unstranded reads, so count intergenic and renormalize to lessen the impact of double counting [Default: %default]')
     (options,args) = parser.parse_args()
 
@@ -40,221 +38,97 @@ def main():
     else:
         parser.error('Genome must specify hg19 or mm9.')
 
-    # count reads
-    read_count = count_bam(bam_file)
-
     if options.paired:
         # split bam file by strand
         split_bam_xs(bam_file)
+
+    annotation_classes = set(options.annotations.split(','))
+
+    ############################################
+    # annotation lengths
+    ############################################
+    genome_length = count_genome(assembly_dir)
+
+    annotation_lengths = {}
+    for ann in annotation_classes:
+        if ann != 'intergenic':
+            annotation_bed = '%s/%s.bed' % (annotation_dir,ann)
+            if os.path.isfile(annotation_bed):
+                annotation_lengths[ann] = annotation_length(annotation_bed, assembly_dir)
+            else:
+                parser.error('Cannot find annotation BED %s' % annotation_bed)
+                
+    if 'intergenic' in annotation_classes:
+        other_annotations_summed = sum(annotation_lengths.values())
+        annotation_lengths['intergenic'] = genome_length - other_annotations_summed
+
+    ############################################
+    # annotation read counts
+    ############################################
+    genome_reads = count_bam(bam_file)
+
+    annotation_reads = {}
+    for ann in annotation_classes:
+        if ann != 'intergenic':
+            annotation_bed = '%s/%s.bed' % (annotation_dir,ann)
+            annotation_reads[ann] = count_intersection(bam_file, annotation_bed, options.unstranded, options.paired)
+
+    if 'intergenic' in annotation_classes:
+        other_annotations_summed = sum(annotation_reads.values())
+        annotation_reads['intergenic'] = genome_reads - other_annotations_summed
     
-    # rRNA
-    rrna_length = annotation_length('%s/rrna.bed' % annotation_dir, assembly_dir)
-    rrna_reads = count_intersection(bam_file, '%s/rrna.bed' % annotation_dir, options.unstranded, options.paired)
-    rrna_reads_norm = rrna_reads / float(rrna_length)
-
-    # small RNA
-    smallrna_length = annotation_length('%s/smallrna.bed' % annotation_dir, assembly_dir)
-    smallrna_reads = count_intersection(bam_file, '%s/smallrna.bed' % annotation_dir, options.unstranded, options.paired)
-    smallrna_reads_norm = smallrna_reads / float(smallrna_length)
-
-    # CDS
-    cds_length = annotation_length('%s/cds.bed' % annotation_dir, assembly_dir)
-    cds_reads = count_intersection(bam_file, '%s/cds.bed' % annotation_dir, options.unstranded, options.paired)
-    cds_reads_norm = cds_reads / float(cds_length)
-
-    # 3' UTR
-    utr3_length = annotation_length('%s/utrs_3p.bed' % annotation_dir, assembly_dir)
-    utr3_reads = count_intersection(bam_file, '%s/utrs_3p.bed' % annotation_dir, options.unstranded, options.paired)
-    utr3_reads_norm = utr3_reads / float(utr3_length)
-
-    # 5' UTR
-    utr5_length = annotation_length('%s/utrs_5p.bed' % annotation_dir, assembly_dir)
-    utr5_reads = count_intersection(bam_file, '%s/utrs_5p.bed' % annotation_dir, options.unstranded, options.paired)
-    utr5_reads_norm = utr5_reads / float(utr5_length)
-
-    # pseudogenes
-    pseudo_length = annotation_length('%s/pseudogene.bed' % annotation_dir, assembly_dir)
-    pseudo_reads = count_intersection(bam_file, '%s/pseudogene.bed' % annotation_dir, options.unstranded, options.paired)
-    pseudo_reads_norm = pseudo_reads / float(pseudo_length)
-
-    # lncRNAs
-    lnc_length = annotation_length('%s/lncrna.bed' % annotation_dir, assembly_dir)
-    lnc_reads = count_intersection(bam_file, '%s/lncrna.bed' % annotation_dir, options.unstranded, options.paired)
-    lnc_reads_norm = lnc_reads / float(lnc_length)
-
-    # intersect introns
-    intron_length = annotation_length('%s/introns.bed' % annotation_dir, assembly_dir)
-    intron_reads = count_intersection(bam_file, '%s/introns.bed' % annotation_dir, options.unstranded, options.paired, introns=True)
-    intron_reads_norm = intron_reads / float(intron_length)
-
-    # intergenic
-    intergenic_length = genome_length(assembly_dir) - rrna_length - smallrna_length - cds_length - utr3_length - utr5_length - pseudo_length - lnc_length - intron_length
-    intergenic_reads = read_count - rrna_reads - smallrna_reads - cds_reads - utr3_reads - utr5_reads - pseudo_reads - lnc_reads - intron_reads
-    if options.unstranded:
-        intergenic_reads_sub = intergenic_reads
-        intergenic_reads = count_sans_intersection(bam_file, '%s/../gencode.v15.annotation.gtf' % annotation_dir)
-
-        read_count = rrna_reads + smallrna_reads + cds_reads + utr3_reads + utr5_reads + pseudo_reads + lnc_reads + intron_reads + intergenic_reads
-    intergenic_reads_norm = intergenic_reads / float(intergenic_length)
+        #if options.unstranded:
+        #    intergenic_reads_sub = intergenic_reads
+        #    intergenic_reads = count_sans_intersection(bam_file, '%s/../gencode.v15.annotation.gtf' % annotation_dir)
 
     if options.paired:
         os.remove(bam_file[:-4] + '_p.bam')
         os.remove(bam_file[:-4] + '_m.bam')
 
-    # compute pie values to print
-    rrna_pie = float(rrna_reads)/read_count
-    smallrna_pie = float(smallrna_reads)/read_count
-    cds_pie = float(cds_reads)/read_count
-    utr5_pie = float(utr5_reads)/read_count
-    utr3_pie = float(utr3_reads)/read_count
-    pseudo_pie = float(pseudo_reads)/read_count
-    lnc_pie = float(lnc_reads)/read_count
-    intron_pie = float(intron_reads)/read_count
-    intergenic_pie = float(intergenic_reads)/read_count
+    ############################################
+    # table
+    ############################################
+    annotation_labels = {'rrna':'rRNA', 'smallrna':'smallRNA', 'cds':'CDS', 'utrs_3p':'3\'UTR', 'utrs_5p':'5\'UTR', 'pseudogene':'Pseudogene', 'lncrna':'lncRNA', 'introns':'Introns', 'intergenic':'Intergenic'}
 
-    norm_sum = rrna_reads_norm + smallrna_reads_norm + cds_reads_norm + utr5_reads_norm + utr3_reads_norm + pseudo_reads_norm + lnc_reads_norm + intron_reads_norm + intergenic_reads_norm
-    rrna_norm_pie = float(rrna_reads_norm)/norm_sum
-    smallrna_norm_pie = float(smallrna_reads_norm)/norm_sum
-    cds_norm_pie = float(cds_reads_norm)/norm_sum
-    utr5_norm_pie = float(utr5_reads_norm)/norm_sum
-    utr3_norm_pie = float(utr3_reads_norm)/norm_sum
-    pseudo_norm_pie = float(pseudo_reads_norm)/norm_sum
-    lnc_norm_pie = float(lnc_reads_norm)/norm_sum
-    intron_norm_pie = float(intron_reads_norm)/norm_sum
-    intergenic_norm_pie = float(intergenic_reads_norm)/norm_sum
+    reads_sum = float(sum(annotation_reads.values()))
+    lengths_sum = float(sum(annotation_lengths.values()))
 
-    # print counts to file
-    counts_out = open('annotation_counts.txt','w')
-    print >> counts_out, 'rRNA        %10d %8d %5.3f %9.2e %5.3f' % (rrna_length, rrna_reads, rrna_pie, rrna_reads_norm, rrna_norm_pie)
-    print >> counts_out, 'smallRNA    %10d %8d %5.3f %9.2e %5.3f' % (smallrna_length, smallrna_reads, smallrna_pie, smallrna_reads_norm, smallrna_norm_pie)
-    print >> counts_out, 'CDS         %10d %8d %5.3f %9.2e %5.3f' % (cds_length, cds_reads, cds_pie, cds_reads_norm, cds_norm_pie)
-    print >> counts_out, "5'UTR       %10d %8d %5.3f %9.2e %5.3f" % (utr5_length, utr5_reads, utr5_pie, utr5_reads_norm, utr5_norm_pie)
-    print >> counts_out, "3'UTR       %10d %8d %5.3f %9.2e %5.3f" % (utr3_length, utr3_reads, utr3_pie, utr3_reads_norm, utr3_norm_pie)
-    print >> counts_out, 'Pseudogene  %10d %8d %5.3f %9.2e %5.3f' % (pseudo_length, pseudo_reads, pseudo_pie, pseudo_reads_norm, pseudo_norm_pie)
-    print >> counts_out, 'lncRNA      %10d %8d %5.3f %9.2e %5.3f' % (lnc_length, lnc_reads, lnc_pie, lnc_reads_norm, lnc_norm_pie)
-    print >> counts_out, 'Intron      %10d %8d %5.3f %9.2e %5.3f' % (intron_length, intron_reads, intron_pie, intron_reads_norm, intron_norm_pie)
-    print >> counts_out, 'Intergenic  %10d %8d %5.3f %9.2e %5.3f' % (intergenic_length, intergenic_reads, intergenic_pie, intergenic_reads_norm, intergenic_norm_pie)
-    if options.unstranded:
-        print >> counts_out, 'IntergenSub %10d %8d' % (intergenic_length, intergenic_reads_sub)
+    annotation_ratio = {}
+
+    counts_out = open('%s_counts.txt' % options.output_prefix, 'w')
+    for ann in annotation_classes:
+        read_pct = annotation_reads[ann]/reads_sum
+        length_pct = annotation_lengths[ann]/lengths_sum
+
+        if read_pct > 0:
+            annotation_ratio[ann] = math.log(read_pct/length_pct,2)
+        else:
+            annotation_ratio[ann] = math.log((1+annotation_reads[ann])/(1+reads_sum),2)
+
+        cols = (annotation_labels[ann], annotation_reads[ann], read_pct, length_pct, annotation_ratio[ann])
+        print >> counts_out, '%10s  %8d  %6.4f  %6.4f  %5.2f' % cols
     counts_out.close()
 
-    # construct data frame
-    dummy_r = ro.StrVector(['.']*9)
-    counts_r = ro.IntVector([rrna_reads, smallrna_reads, cds_reads, utr3_reads, utr5_reads, pseudo_reads, lnc_reads, intron_reads, intergenic_reads])
-    annotations_r = ro.StrVector(['rRNA', 'smallRNA', 'CDS', '3\'UTR', '5\'UTR', 'lncRNA', 'Pseudogene', 'Intron', 'Intergenic'])
-    df = ro.DataFrame({'dummy':dummy_r, 'count':counts_r, 'annotation':annotations_r})
+    ############################################
+    # pie chart
+    ############################################
+    pie_df = {'dummy':[], 'annotation':[], 'count':[]}
+    for ann in annotation_classes:
+        pie_df['dummy'].append('.')
+        pie_df['annotation'].append(annotation_labels[ann])
+        pie_df['count'].append(annotation_reads[ann])
 
-    # plot bar
-    '''
-    gp = ggplot2.ggplot(df) + \
-        ggplot2.aes_string(x='dummy', y='count', fill='annotation') + \
-        ggplot2.geom_bar(stat='identity', width=1) + \
-        ggplot2.scale_x_discrete('') + \
-        ggplot2.scale_y_continuous('Aligned reads') + \
-        ggplot2.scale_fill_discrete('Annotation') + \
-        ggplot2.opts(title=options.title)
+    ggplot.plot('%s/annotation_pie_pie.r'%os.environ['GGPLOT'], pie_df, [options.title, '%s_pie.pdf'%options.output_prefix])
 
-    # plot to file
-    grdevices.pdf(file='annotation_reads_bar.pdf')
-    gp.plot()
-    grdevices.dev_off()
-    '''
+    ############################################
+    # read:length ratio
+    ############################################
+    ratio_df = {'annotation':[], 'ratio':[]}
+    for ann in annotation_classes:
+        ratio_df['annotation'].append(annotation_labels[ann])
+        ratio_df['ratio'].append(annotation_ratio[ann])
 
-    # plot pie
-    gp = ggplot2.ggplot(df) + \
-        ggplot2.aes_string(x='dummy', y='count', fill='annotation') + \
-        ggplot2.geom_bar(stat='identity', width=1) + \
-        ggplot2.coord_polar(theta='y') + \
-        ggplot2.scale_x_discrete('') + \
-        ggplot2.scale_y_continuous('Aligned reads') + \
-        ggplot2.scale_fill_discrete('Annotation') + \
-        ggplot2.opts(title=options.title)
-
-    # plot to file
-    grdevices.pdf(file='annotation_reads_pie.pdf')
-    gp.plot()
-    grdevices.dev_off()
-
-    # normalize
-    counts_r = ro.FloatVector([rrna_reads_norm, smallrna_reads_norm, cds_reads_norm, utr3_reads_norm, utr5_reads_norm, pseudo_reads_norm, lnc_reads_norm, intron_reads_norm, intergenic_reads_norm])
-    df = ro.DataFrame({'dummy':dummy_r, 'count':counts_r, 'annotation':annotations_r})
-
-    # plot norm bar
-    '''
-    gp = ggplot2.ggplot(df) + \
-        ggplot2.aes_string(x='dummy', y='count', fill='annotation') + \
-        ggplot2.geom_bar(stat='identity', width=1) + \
-        ggplot2.scale_x_discrete('') + \
-        ggplot2.scale_y_continuous('Length-normalized aligned reads') + \
-        ggplot2.scale_fill_discrete('Annotation') + \
-        ggplot2.opts(title=options.title)
-
-    # plot to file
-    grdevices.pdf(file='annotation_reads_norm_bar.pdf')
-    gp.plot()
-    grdevices.dev_off()
-    '''
-
-    # plot norm pie
-    gp = ggplot2.ggplot(df) + \
-        ggplot2.aes_string(x='dummy', y='count', fill='annotation') + \
-        ggplot2.geom_bar(stat='identity', width=1) + \
-        ggplot2.coord_polar(theta='y') + \
-        ggplot2.scale_x_discrete('') + \
-        ggplot2.scale_y_continuous('Length-normalized aligned reads') + \
-        ggplot2.scale_fill_discrete('Annotation') + \
-        ggplot2.opts(title=options.title)
-
-    # plot to file
-    grdevices.pdf(file='annotation_reads_norm_pie.pdf')
-    gp.plot()
-    grdevices.dev_off()
-
-    # normalize, sans small RNA
-    norm_sum = cds_reads_norm + utr5_reads_norm + utr3_reads_norm + pseudo_reads_norm + lnc_reads_norm + intron_reads_norm + intergenic_reads_norm
-    cds_norm_pie = float(cds_reads_norm)/norm_sum
-    utr5_norm_pie = float(utr5_reads_norm)/norm_sum
-    utr3_norm_pie = float(utr3_reads_norm)/norm_sum
-    pseudo_norm_pie = float(pseudo_reads_norm)/norm_sum
-    lnc_norm_pie = float(lnc_reads_norm)/norm_sum
-    intron_norm_pie = float(intron_reads_norm)/norm_sum
-    intergenic_norm_pie = float(intergenic_reads_norm)/norm_sum
-
-    counts_r = ro.FloatVector([cds_reads_norm, utr3_reads_norm, utr5_reads_norm, pseudo_reads_norm, lnc_reads_norm, intron_reads_norm, intergenic_reads_norm])
-    annotations_r = ro.StrVector(['CDS', '3\'UTR', '5\'UTR', 'lncRNA', 'Pseudogene', 'Intron', 'Intergenic'])
-    df = ro.DataFrame({'dummy':dummy_r, 'count':counts_r, 'annotation':annotations_r})
-
-    # plot norm bar
-    '''
-    gp = ggplot2.ggplot(df) + \
-        ggplot2.aes_string(x='dummy', y='count', fill='annotation') + \
-        ggplot2.geom_bar(stat='identity', width=1) + \
-        ggplot2.scale_x_discrete('') + \
-        ggplot2.scale_y_continuous('Length-normalized aligned reads') + \
-        ggplot2.scale_fill_discrete('Annotation') + \
-        ggplot2.opts(title=options.title)
-
-    # plot to file
-    grdevices.pdf(file='annotation_reads_normr_bar.pdf')
-    gp.plot()
-    grdevices.dev_off()
-    '''
-
-    # plot norm pie
-    gp = ggplot2.ggplot(df) + \
-        ggplot2.aes_string(x='dummy', y='count', fill='annotation') + \
-        ggplot2.geom_bar(stat='identity', width=1) + \
-        ggplot2.coord_polar(theta='y') + \
-        ggplot2.scale_x_discrete('') + \
-        ggplot2.scale_y_continuous('Length-normalized aligned reads') + \
-        ggplot2.scale_fill_discrete('Annotation') + \
-        ggplot2.opts(title=options.title)
-
-    # plot to file
-    grdevices.pdf(file='annotation_reads_normr_pie.pdf')
-    gp.plot()
-    grdevices.dev_off()
-
+    ggplot.plot('%s/annotation_pie_ratios.r'%os.environ['GGPLOT'], ratio_df, [options.title, '%s_ratios.pdf'%options.output_prefix])
 
 
 ################################################################################
@@ -406,12 +280,12 @@ def count_sans_intersection(bam_file, bed_file):
     
 
 ################################################################################
-# genome_length
+# count_genome
 #
 # Output
 #  glength: Length of the human genome assembly minus gaps.
 ################################################################################
-def genome_length(assembly_dir):
+def count_genome(assembly_dir):
     if assembly_dir.find('hg19') != -1:
         chrom_file = '%s/human.hg19.genome' % assembly_dir
         gaps_file = '%s/hg19_gaps.bed' % assembly_dir
