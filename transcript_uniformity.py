@@ -72,8 +72,8 @@ def main():
         clip_peaks.ambiguate_strands(transcripts, g2t_merge, antisense_clusters)
 
     # set transcript FPKMs
-    clip_peaks.set_transcript_fpkms(transcripts)
-    
+    clip_peaks.set_transcript_fpkms(transcripts, missing_fpkm=0)
+
     # possibly limit genes to examine
     if options.gene_only:
         gene_ids = []
@@ -157,7 +157,7 @@ def main():
                     id_list.append(sd*sd/u)
                     fpkm_list.append(gene_transcripts[tid].fpkm)
 
-                    cols = (tid, gene_transcripts[tid].fpkm, len(transcript_isoform_counts[tid])-1, u, sd, id_list[0])
+                    cols = (tid, gene_transcripts[tid].fpkm, len(transcript_isoform_counts[tid])-1, u, sd, id_list[-1])
                     print >> table_out, '%-20s  %8.2f  %6d  %7.2f  %7.2f  %5.3f' % cols        
 
     bam_in.close()
