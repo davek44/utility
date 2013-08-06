@@ -72,10 +72,10 @@ def header_bed(header, seq, bed_file, options):
             feat_start = int(a[1])
             feat_end = int(a[2])
 
+            feat_header = ''
             if a[3] != '.':
-                feat_header = a[3]
-            else:
-                feat_header = '%s:%d-%d:%s' % (header,feat_start,feat_end,a[5])
+                feat_header = a[3] + ':'
+            feat_header += '%s:%d-%d:%s' % (header,feat_start,feat_end,a[5])
             
             if a[5] == '+':
                 feat_seq = seq[feat_start:feat_end]
