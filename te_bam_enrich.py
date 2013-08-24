@@ -11,7 +11,7 @@ import bedtools, gff, stats
 # Compute the enrichment of aligned reads in a BAM file in transposable
 # element families.
 #
-# Slight bug:
+# Bugs:
 # -To intersect the BAM file with the repeats GFF, I need to use the -split
 #   option to avoid intron intersections. However, then it splits each spliced
 #   read so the same read could be counted twice if it intersects at both
@@ -19,6 +19,11 @@ import bedtools, gff, stats
 # -To filter the BAM file with a GFF, I require the read be fully within
 #   the feature, but I need to relax this requirement for spliced reads
 #   because otherwise their entire span is considered.
+# -Spliced transcripts as "-g" will be undercounted by "count_bed" because
+#   I assume each region is a unit which the read must be contained within.
+#
+# WARNINGs:
+# -Just don't use it for spliced transcripts as "-g", unless I have a control.
 ################################################################################
 
 ################################################################################
@@ -30,11 +35,12 @@ def main():
     parser.add_option('-c', dest='control_bam_file', help='Control BAM file to paramterize null distribution [Default: %default]')
     parser.add_option('-g', dest='filter_gff', help='Filter the TEs by overlap with genes in the given gff file [Default: %default]')
     parser.add_option('-m', dest='mapq', default=False, action='store_true', help='Consider only reads with mapq>0 [Default: %default]')
-    parser.add_option('-r', dest='repeats_gff', default='%s/research/common/data/genomes/hg19/annotation/repeatmasker/hg19.fa.out.tp.gff' % os.environ['HOME'])
+    parser.add_option('-r', dest='repeats_gff', default='%s/hg19.fa.out.tp.gff' % os.environ['MASK'])
+    parser.add_option('-s', dest='strand_split', default=False, action='store_true', help='Split statistics by strand [Default: %default]')
     (options,args) = parser.parse_args()
 
     if len(args) != 1:
-        parser.error('Must provide a gff file for the feature of interest.')
+        parser.error('Must provide a BAM file.')
     else:
         bam_file = args[0]
 
@@ -90,14 +96,14 @@ def main():
     ############################################
     # lengths
     ############################################
-    # compute size of search space
-    if options.filter_gff:
-        genome_length = count_bed(filter_merged_bed_file)
-    else:
-        genome_length = count_hg19()
-
     # estimate read length
     read_len = estimate_read_length(bam_file)
+
+    # compute size of search space
+    if options.filter_gff:
+        genome_length = count_bed(filter_merged_bed_file, read_len)
+    else:
+        genome_length = count_hg19()
 
     # hash counted repeat genomic bp
     #te_lengths = measure_te(options.repeats_gff)
@@ -109,9 +115,17 @@ def main():
     ############################################
     # count TE fragments
     ############################################
-    fragments, te_fragments = count_te_fragments(bam_file, options.repeats_gff)
+    fragments, te_fragments = count_te_fragments(bam_file, options.repeats_gff, options.strand_split)
     if options.control_bam_file:
-        control_fragments, control_te_fragments = count_te_fragments(options.control_bam_file, options.repeats_gff)
+        control_fragments, control_te_fragments = count_te_fragments(options.control_bam_file, options.repeats_gff, options.strand_split)
+
+        # add control pseudocounts
+        all_tes = set(te_fragments.keys() + control_te_fragments.keys())
+        for rep_fam in all_tes:            
+            control_te_fragments[rep_fam] = control_te_fragments.get(rep_fam,0) += 1
+            control_fragments += 1
+            if not rep_fam in te_fragments:
+                te_fragments[rep_fam] = 0
 
     ############################################
     # compute stats, print table
@@ -119,7 +133,7 @@ def main():
     for (rep,fam) in te_fragments:
         # parameterize null model
         if options.control_bam_file:
-            te_p = control_te_fragments.get((rep,fam),1.0) / control_fragments
+            te_p = control_te_fragments[(rep,fam)] / control_fragments
         else:
             te_p = float(te_lengths[(rep,fam)]) / genome_length
 
@@ -164,11 +178,11 @@ def main():
 #
 # Count the number of bp in the filter merged BED file.
 ################################################################################
-def count_bed(bed_file):
+def count_bed(bed_file, read_len):
     bp = 0    
     for line in open(bed_file):
         a = line.split()
-        bp += int(a[2]) - int(a[1])
+        bp += int(a[2]) - int(a[1]) - read_len + 1
     return bp
 
 
@@ -201,7 +215,7 @@ def count_hg19():
 #
 # Count the number of fragments aligned to each TE family.
 ################################################################################
-def count_te_fragments(bam_file, te_gff):
+def count_te_fragments(bam_file, te_gff, strand_split=False):
     # count fragments and hash multi-mappers
     num_fragments = 0
     multi_maps = {}
@@ -232,14 +246,28 @@ def count_te_fragments(bam_file, te_gff):
         a = line.split('\t')
         te_kv = gff.gtf_kv(a[20])
 
+        rep = te_kv['repeat']
+        fam = te_kv['family']
+
         if is_paired:
             read_inc = 0.5/multi_maps.get(a[3],1.0)
         else:
             read_inc = 1.0/multi_maps.get(a[3],1.0)
 
-        te_fragments[(te_kv['repeat'],te_kv['family'])] = te_fragments.get((te_kv['repeat'],te_kv['family']),0.0) + read_inc
-        te_fragments[('*',te_kv['family'])] = te_fragments.get(('*',te_kv['family']),0.0) + read_inc
-        te_fragments[('*','*')] = te_fragments.get(('*','*'),0.0) + read_inc
+        rep_star = '*'
+        if strand_split:
+            rstrand = a[5]
+            tstrand = a[18]
+            if rstrand == tstrand:
+                rep += '+'
+                rep_star += '+'
+            else:
+                rep += '-'
+                rep_star += '-'
+
+        te_fragments[(rep,fam)] = te_fragments.get((rep,fam),0.0) + read_inc
+        te_fragments[(rep_star,fam)] = te_fragments.get((rep_star,fam),0.0) + read_inc
+        te_fragments[(rep_star,'*')] = te_fragments.get((rep_star,'*'),0.0) + read_inc
 
     proc.communicate()
 
@@ -270,9 +298,10 @@ def estimate_read_length(bam_file):
 # and the lincRNA gtf file.
 #
 # Note:
-#  -This version is obsolete because it doesn't consider that overlapping
-#   reads need not be inside the TE and the true range depends on the read
-#   length. It's been replaced by te_target_size.
+#  -This version is no longer used to parameterize the null model  because it
+#   doesn't consider that overlapping reads need not be inside the TE and the
+#   true range depends on the read length. It's been replaced by te_target_size.
+#   However, it's still used by a few different places.
 ################################################################################
 def measure_te(rm_file):
     repeat_bp = {}
