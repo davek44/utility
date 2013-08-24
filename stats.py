@@ -178,8 +178,11 @@ def median(ls):
 #
 # Return mean of a list
 ############################################################
-def mean(ls):    
-    return float(sum(ls)) / float(len(ls))
+def mean(ls):
+    if len(ls) == 0:
+        return 0
+    else:
+        return float(sum(ls)) / float(len(ls))
 
     
 ############################################################
