@@ -17,6 +17,7 @@ def main():
     usage = 'usage: %prog [options] -k <key> <gtf file>'
     parser = OptionParser(usage)
     parser.add_option('-k', dest='key', help='Key to extract')
+    parser.add_option('-l', dest='line_too', action='store_true', default=False, help='Print the line too [Default: %default]')
     (options,args) = parser.parse_args()
 
     if len(args) == 1:
@@ -33,7 +34,12 @@ def main():
     for line in gtf_open:
         a = line.split('\t')
         kv = gff.gtf_kv(a[8])
-        print kv.get(options.key,'')
+        
+        if options.line_too:
+            print '%s\t%s' % (kv.get(options.key,'-'),line),
+        else:
+            print kv.get(options.key,'-')
+
 
 ################################################################################
 # __main__
