@@ -79,7 +79,6 @@ def main():
     if feature_gff[-3:] == 'gtf':
         feature_bed_fd, feature_bed_file = tempfile.mkstemp()
         subprocess.call('gtf2bed.py %s > %s' % (feature_gff,feature_bed_file), shell=True)
-        
 
     elif feature_gff[-3:] == 'gff':
         feature_bed_fd, feature_bed_file = tempfile.mkstemp()
@@ -87,7 +86,7 @@ def main():
 
     elif feature_gff[-3:] == 'bed':
         feature_bed_file = feature_gff
-        
+
     else:
         parser.error('Cannot recognize gff format suffix')
 
@@ -101,7 +100,7 @@ def main():
         print >> sys.stderr, ni
 
         # shuffle feature bed
-        p = subprocess.call('shuffleBed -i %s -g %s/research/common/data/genomes/hg19/assembly/human.hg19.genome -excl %s/research/common/data/genomes/hg19/assembly/hg19_gaps.bed > %s' % (feature_bed_file, home_dir, home_dir, shuffle_bed_file), shell=True)
+        subprocess.call('shuffleBed -i %s -g %s/research/common/data/genomes/hg19/assembly/human.hg19.genome -excl %s/research/common/data/genomes/hg19/assembly/hg19_gaps.bed > %s' % (feature_bed_file, home_dir, home_dir, shuffle_bed_file), shell=True)
 
         # intersect w/ TEs and hash overlaps
         te_tmp_bp = intersect_hash(options.repeats_gff, shuffle_bed_file)
