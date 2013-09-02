@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from optparse import OptionParser
 from scipy.stats import binom
-import gzip, os, random, subprocess, sys, tempfile
+import gzip, os, pdb, random, subprocess, sys, tempfile
 import pysam
 import bedtools, gff, stats
 
@@ -121,8 +121,8 @@ def main():
 
         # add control pseudocounts
         all_tes = set(te_fragments.keys() + control_te_fragments.keys())
-        for rep_fam in all_tes:            
-            control_te_fragments[rep_fam] = control_te_fragments.get(rep_fam,0) += 1
+        for rep_fam in all_tes:
+            control_te_fragments[rep_fam] = control_te_fragments.get(rep_fam,0) + 1
             control_fragments += 1
             if not rep_fam in te_fragments:
                 te_fragments[rep_fam] = 0
@@ -135,7 +135,10 @@ def main():
         if options.control_bam_file:
             te_p = control_te_fragments[(rep,fam)] / control_fragments
         else:
-            te_p = float(te_lengths[(rep,fam)]) / genome_length
+            if options.strand_split:
+                te_p = float(te_lengths[(rep[:-1],fam)]) / (2*genome_length)
+            else:
+                te_p = float(te_lengths[(rep,fam)]) / genome_length
 
         # compute p-value of enrichment/depletion
         if te_fragments[(rep,fam)] > te_p*fragments:
@@ -149,7 +152,12 @@ def main():
         else:
             fold = 0
 
-        cols = (rep, fam, te_lengths[(rep,fam)], te_fragments[(rep,fam)], te_p, fold, p_val)
+        if options.strand_split:
+            te_len = te_lengths[(rep[:-1],fam)]
+        else:
+            te_len = te_lengths[(rep,fam)]
+            
+        cols = (rep, fam, te_len, te_fragments[(rep,fam)], te_p, fold, p_val)
         print '%-18s %-18s %10d %10d %10.2e %10.3f %10.2e' % cols
 
     ############################################
@@ -446,3 +454,4 @@ def te_target_size_bed(te_gff, ref_bed, read_len):
 ################################################################################
 if __name__ == '__main__':
     main()
+    #pdb.runcall(main)
