@@ -59,7 +59,7 @@ def abam_f1(bam_file, bed_file, out_file):
     subprocess.call('intersectBed -f 1 -abam %s -b %s > %s' % (unspliced_bam_file, bed_file, unspliced_is_bam_file), shell=True)
     subprocess.call('intersectBed -abam %s -b %s > %s' % (spliced_bam_file, bed_file, spliced_is_bam_file), shell=True)
 
-    subprocess.call('samtools merge %s %s %s' % (out_file, unspliced_is_bam_file, spliced_is_bam_file), shell=True)
+    subprocess.call('samtools merge -f %s %s %s' % (out_file, unspliced_is_bam_file, spliced_is_bam_file), shell=True)
 
     ############################################
     # clean
