@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 from optparse import OptionParser
-import gff
+import gff, sys
 
 ################################################################################
 # gff2bed.py
@@ -22,9 +22,12 @@ def main():
     if len(args) != 1:
         parser.error('Must provide gff file')
     else:
-        gff_file = args[0]
+        if args[0] == '-':
+            gff_open = sys.stdin
+        else:
+            gff_open = open(args[0])
 
-    for line in open(gff_file):
+    for line in gff_open:
         a = line.split('\t')
 
         cols = [a[0], str(int(a[3])-1), a[4], a[2], '0', a[6], '0', '0', '255,0,0', '1', str(int(a[4])-int(a[3])+1), '0']
