@@ -30,15 +30,19 @@ def main():
 
     if not options.key:
         parser.error('Must provide key')
+    else:
+        keys = options.key.split(',')
 
     for line in gtf_open:
-        a = line.split('\t')
-        kv = gff.gtf_kv(a[8])
-        
-        if options.line_too:
-            print '%s\t%s' % (kv.get(options.key,'-'),line),
-        else:
-            print kv.get(options.key,'-')
+        if not line.startswith('##'):
+            a = line.split('\t')
+            kv = gff.gtf_kv(a[8])
+
+            if options.line_too:
+                key_str = '\t'.join([kv.get(key,'-') for key in keys])
+                print '%s\t%s' % (key_str,line),
+            else:
+                print '\t'.join([kv.get(key,'-') for key in keys])
 
 
 ################################################################################
