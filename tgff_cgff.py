@@ -61,7 +61,7 @@ def flip_feature(transcript, feat):
 ################################################################################
 # map_feature
 ################################################################################
-def map_feature(transcript, feat):
+def map_feature(transcript, feat):    
     if transcript.strand == '-':
         # flip feature and treat as '+'
         flip_feature(transcript, feat)
@@ -76,10 +76,12 @@ def map_feature(transcript, feat):
     events[2].type = 'tstart'
     events[-1].type = 'tend'
 
-    #print >> sys.stderr, transcript.id
-    #for e in events:
-    #    print >> sys.stderr, e
-    #print >> sys.stderr, ''
+    '''
+    print >> sys.stderr, transcript.id
+    for e in events:
+        print >> sys.stderr, e
+    print >> sys.stderr, ''
+    '''
 
     events.sort()
 
@@ -108,6 +110,7 @@ def map_feature(transcript, feat):
 
             else:
                 print >> sys.stderr, 'Unimagined event case'
+                exit(1)
 
 class Feature:
     def __init__(self, gff_line):
