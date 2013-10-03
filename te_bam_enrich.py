@@ -116,21 +116,26 @@ def main():
     # count TE fragments
     ############################################
     fragments, te_fragments = count_te_fragments(bam_file, options.repeats_gff, options.strand_split)
+    all_tes = set(te_fragments.keys())
+
     if options.control_bam_file:
         control_fragments, control_te_fragments = count_te_fragments(options.control_bam_file, options.repeats_gff, options.strand_split)
 
         # add control pseudocounts
-        all_tes = set(te_fragments.keys() + control_te_fragments.keys())
-        for rep_fam in all_tes:
-            control_te_fragments[rep_fam] = control_te_fragments.get(rep_fam,0) + 1
-            control_fragments += 1
-            if not rep_fam in te_fragments:
-                te_fragments[rep_fam] = 0
+        all_tes |= control_te_fragments.keys())
+        for (rep,fam) in all_tes:
+            if rep != '*':
+                control_te_fragments[(rep,fam)] = control_te_fragments.get((rep,fam),0) + 1
+                control_te_fragments[('*',fam)] = control_te_fragments.get(('*',fam),0) + 1
+                control_te_fragments[('*','*')] = control_te_fragments.get(('*','*'),0) + 1
+                control_fragments += 1
+            if not (rep,fam) in te_fragments:
+                te_fragments[(rep,fam)] = 0
 
     ############################################
     # compute stats, print table
     ############################################
-    for (rep,fam) in te_fragments:
+    for (rep,fam) in all_tes:
         # parameterize null model
         if options.control_bam_file:
             te_p = control_te_fragments[(rep,fam)] / control_fragments
@@ -157,8 +162,8 @@ def main():
         else:
             te_len = te_lengths[(rep,fam)]
             
-        cols = (rep, fam, te_len, te_fragments[(rep,fam)], te_p, fold, p_val)
-        print '%-18s %-18s %10d %10d %10.2e %10.3f %10.2e' % cols
+        cols = (rep, fam, te_len, te_fragments[(rep,fam)], te_p*fragments, fold, p_val)
+        print '%-18s %-18s %10d %10.1f %10.1f %10.3f %10.2e' % cols
 
     ############################################
     # clean
