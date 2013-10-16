@@ -69,31 +69,6 @@ def main():
             options.control_bam_file = cbam_gff_file
 
     ############################################
-    # mapq filter
-    ############################################
-    if options.mapq:
-        # filter BAM file for mapping quality
-        bam_mapq_fd, bam_mapq_file = tempfile.mkstemp(dir='%s/research/scratch/temp' % os.environ['HOME'])
-        bam_in = pysam.Samfile(bam_file, 'rb')
-        bam_mapq_out = pysam.Samfile(bam_mapq_file, 'wb', template=bam_in)
-        for aligned_read in bam_in:
-            if aligned_read.mapq > 0:
-                bam_mapq_out.write(aligned_read)
-        bam_mapq_out.close()
-        bam_file = bam_mapq_file
-
-        # filter control BAM for mapping quality
-        if options.control_bam_file:
-            cbam_mapq_fd, cbam_mapq_file = tempfile.mkstemp(dir='%s/research/scratch/temp' % os.environ['HOME'])
-            cbam_in = pysam.Samfile(options.control_bam_file, 'rb')
-            cbam_mapq_out = pysam.Samfile(cbam_mapq_file, 'wb', template=cbam_in)
-            for aligned_read in cbam_in:
-                if aligned_read.mapq > 0:
-                    cbam_mapq_out.write(aligned_read)
-            cbam_mapq_out.close()
-            options.control_bam_file = cbam_mapq_file
-
-    ############################################
     # lengths
     ############################################
     # estimate read length
@@ -122,7 +97,7 @@ def main():
         control_fragments, control_te_fragments = count_te_fragments(options.control_bam_file, options.repeats_gff, options.strand_split)
 
         # add control pseudocounts
-        all_tes |= control_te_fragments.keys())
+        all_tes |= set(control_te_fragments.keys())
         for (rep,fam) in all_tes:
             if rep != '*':
                 control_te_fragments[(rep,fam)] = control_te_fragments.get((rep,fam),0) + 1
@@ -178,12 +153,6 @@ def main():
         if options.control_bam_file:
             os.close(cbam_gff_fd)
             os.remove(cbam_gff_file)
-    if options.mapq:
-        os.close(bam_mapq_fd)
-        os.remove(bam_mapq_file)
-        if options.control_bam_file:
-            os.close(cbam_mapq_fd)
-            os.remove(cbam_mapq_file)
 
 
 ################################################################################
