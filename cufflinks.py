@@ -5,11 +5,13 @@ from scipy.stats import norm
 import math, sys
 import stats
 
+'''
 import rpy2
 from rpy2.robjects.numpy2ri import numpy2ri
 import rpy2.robjects as ro
 
 ro.conversion.py2ri = numpy2ri
+'''
 
 ################################################################################
 # cufflinks.py
@@ -215,6 +217,7 @@ class fpkm_tracking:
     # Compute Spearman correlations for either all pairs of genes or one given
     # gene to all others.
     ############################################################################
+    '''
     def spearman(self, gene=None):
         if type(gene) == str:
             cors = ro.r.cor(self.expr[self.gene_map[gene],:], self.expr.transpose(), method='spearman')
@@ -227,7 +230,7 @@ class fpkm_tracking:
         else:
             cors = ro.r.cor(self.expr.transpose(), method='spearman')
             return array(cors)
-
+    '''
 
 ################################################################################
 # __main__
