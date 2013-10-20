@@ -18,7 +18,7 @@ def main():
     parser = OptionParser(usage)
     parser.add_option('-a', dest='annotations', default='rrna,smallrna,cds,utrs_3p,utrs_5p,pseudogene,lncrna,introns,intergenic', help='Comma-separated list of annotation classes to include [Default: %default]')
     parser.add_option('-o', dest='output_prefix', default='annotation', help='Output file prefix [Default: %default]')
-    parser.add_option('-p', dest='paired', action='store_true', default=False, help='Paired end reads, so split intersects by XS tag and strand [Default: %default]')
+    parser.add_option('-p', dest='paired_stranded', action='store_true', default=False, help='Paired end stranded reads, so split intersects by XS tag and strand [Default: %default]')
     parser.add_option('-t', dest='title', default='Title', help='Plot title [Default: %default]')
     parser.add_option('-u', dest='unstranded', action='store_true', default=False, help='Unstranded reads, so count intergenic and renormalize to lessen the impact of double counting [Default: %default]')
     (options,args) = parser.parse_args()
@@ -30,7 +30,7 @@ def main():
         parser.error(usage)
 
     if genome == 'hg19':
-        annotation_dir = '%s/research/common/data/genomes/hg19/annotation/gencode_v15/pie' % os.environ['HOME']
+        annotation_dir = '%s/pie_unstranded' % os.environ['GENCODE']
         assembly_dir = '%s/research/common/data/genomes/hg19/assembly' % os.environ['HOME']
     elif genome == 'mm9':
         annotation_dir = '/n/rinn_data1/indexes/mouse/mm9/annotations/dk_pie'
@@ -38,7 +38,7 @@ def main():
     else:
         parser.error('Genome must specify hg19 or mm9.')
 
-    if options.paired:
+    if options.paired_stranded:
         # split bam file by strand
         split_bam_xs(bam_file)
 
@@ -71,17 +71,17 @@ def main():
     for ann in annotation_classes:
         if ann != 'intergenic':
             annotation_bed = '%s/%s.bed' % (annotation_dir,ann)
-            annotation_reads[ann] = count_intersection(bam_file, annotation_bed, options.unstranded, options.paired)
+            annotation_reads[ann] = count_intersection(bam_file, annotation_bed, options.unstranded, options.paired_stranded)
 
     if 'intergenic' in annotation_classes:
         other_annotations_summed = sum(annotation_reads.values())
         annotation_reads['intergenic'] = genome_reads - other_annotations_summed
     
-        #if options.unstranded:
-        #    intergenic_reads_sub = intergenic_reads
-        #    intergenic_reads = count_sans_intersection(bam_file, '%s/../gencode.v15.annotation.gtf' % annotation_dir)
+        if options.unstranded:
+            intergenic_reads_sub = annotation_reads['intergenic']
+            intergenic_reads = count_sans_intersection(bam_file, '%s/../gencode.v18.annotation.prerna.gtf' % annotation_dir)
 
-    if options.paired:
+    if options.paired_stranded:
         os.remove(bam_file[:-4] + '_p.bam')
         os.remove(bam_file[:-4] + '_m.bam')
 
@@ -194,24 +194,24 @@ def count_bam(bam_file, skip_spliced=False):
 # count_intersection
 #
 # Input
-#  bam_file: Read alignment BAM file
-#  bed_file: Annotation BED file
-#  paired:   Reads are paired
-#  introns:  Counting introns, so ignore spliced reads
+#  bam_file:        Read alignment BAM file
+#  bed_file:        Annotation BED file
+#  paired_stranded: Reads are paired and stranded
+#  introns:         Counting introns, so ignore spliced reads
 #
 # Output
-#  reads:    The number of reads (corrected for multi-mappers) overlapping the
-#             annotation in the BED file.
+#  reads:           The number of reads (corrected for multi-mappers)
+#                    overlapping the annotation in the BED file.
 ################################################################################
-def count_intersection(bam_file, bed_file, unstranded, paired, introns=False):
+def count_intersection(bam_file, bed_file, unstranded, paired_stranded, introns=False):
     intersect_bam_fd, intersect_bam_file = tempfile.mkstemp(dir='%s/research/scratch/temp' % os.environ['HOME'])
 
-    if paired:
+    if paired_stranded:
         # make split bed temp files
         bedp_fd, bedp_file = tempfile.mkstemp()
         bedm_fd, bedm_file = tempfile.mkstemp()
 
-        # splite bed file
+        # split bed file
         split_bed(bed_file, bedp_file, bedm_file)
 
         # get split BAM file names
