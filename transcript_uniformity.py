@@ -26,7 +26,7 @@ def main():
     parser.add_option('-o', dest='out_dir', default='uniform', help='Output directory [Default: %default]')
 
     # window options
-    parser.add_option('-w', dest='window_size', type='int', default=20, help='Window size for counting [Default: %default]')
+    parser.add_option('-w', dest='window_size', type='int', default=25, help='Window size for counting [Default: %default]')
     parser.add_option('-i', '--ignore', dest='ignore_gff', help='Ignore reads overlapping overlapping troublesome regions in the given GFF file')
     parser.add_option('-u', '--unstranded', dest='unstranded', action='store_true', default=False, help='Sequencing is unstranded [Default: %default]')
 
@@ -72,7 +72,7 @@ def main():
         clip_peaks.ambiguate_strands(transcripts, g2t_merge, antisense_clusters)
 
     # set transcript FPKMs
-    clip_peaks.set_transcript_fpkms(transcripts, missing_fpkm=0)
+    clip_peaks.set_transcript_fpkms(transcripts, clip_peaks.out_dir, missing_fpkm=0)
 
     # possibly limit genes to examine
     if options.gene_only:
