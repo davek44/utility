@@ -1,13 +1,8 @@
 #!/usr/bin/env python
 from optparse import OptionParser
-from rpy2.robjects.packages import importr
-import rpy2.robjects as ro
-import rpy2.robjects.lib.ggplot2 as ggplot2
 import os, pdb, shutil, subprocess, sys, tempfile
 import pysam
-import gff
-
-grdevices = importr('grDevices')
+import gff, ggplot
 
 ################################################################################
 # peak_bam_plot.py
@@ -92,9 +87,9 @@ def main():
 
         # because intersectBed screws up indels near endpoints
         if rstart < rend:
-            pstart = int(a[9])
-            pend = int(a[10])
-            peak_id = gff.gtf_kv(a[14])['id']
+            pstart = int(a[15])
+            pend = int(a[16])
+            peak_id = gff.gtf_kv(a[20])['id']
             peak_reads[peak_id] = peak_reads.get(peak_id,0) + 1
 
             peak_mid = pstart + (pend-pstart)/2
@@ -113,11 +108,10 @@ def main():
                 for i in range(range_start - peak_range_start, range_end - peak_range_start + 1):
                     peak_cov_individual[peak_id][i] += 1.0/multi_maps.get(rheader,1)
 
-
     p.communicate()
 
-    for peak_id in peak_reads:
-        print peak_id, peak_reads[peak_id]
+    #for peak_id in peak_reads:
+    #    print peak_id, peak_reads[peak_id]
 
     # output
     make_output(peak_cov, options.out_prefix, options.range)
@@ -149,22 +143,14 @@ def make_output(peak_cov, out_prefix, prange):
         print >> raw_out, '%d\t%e' % (i, peak_cov[i+prange/2])
     raw_out.close()
 
-    # make plot data structures
-    peak_i = ro.IntVector(range(-prange/2,prange/2+1))
-    cov = ro.FloatVector(peak_cov)
-    df = ro.DataFrame({'peak_i':peak_i, 'cov':cov})
+    r_script = '%s/peak_bam_plot.r' % os.environ['GGPLOT']
 
-    # construct full plot
-    gp = ggplot2.ggplot(df) + \
-        ggplot2.aes_string(x='peak_i', y='cov') + \
-        ggplot2.geom_point() + \
-        ggplot2.scale_x_continuous('Peak index') + \
-        ggplot2.scale_y_continuous('Coverage')
+    df_dict = {'peak_i':range(-prange/2,prange/2+1),
+               'cov':peak_cov}
 
-    # plot to file
-    grdevices.pdf(file='%s.pdf' % out_prefix)
-    gp.plot()
-    grdevices.dev_off()
+    out_pdf = '%s.pdf' % out_prefix
+
+    ggplot.plot(r_script, df_dict, [out_pdf])
 
 
 ################################################################################
