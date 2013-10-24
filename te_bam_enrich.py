@@ -121,20 +121,28 @@ def main():
     # combine replicates into fragment rates
     ############################################
     te_fragment_rates = {}
-    for te in te_lengths:
-        rate_list = [te_fragments[i].get(te,1)/float(fragments[i]) for i in range(len(bam_files))]
-        te_fragment_rates[te] = stats.geo_mean(rate_list)
+    for (rep,fam) in te_lengths:
+        if options.strand_split:
+            # positive
+            rate_list = [te_fragments[i].get((rep+'+',fam),1)/float(fragments[i]) for i in range(len(bam_files))]
+            te_fragment_rates[(rep+'+',fam)] = stats.geo_mean(rate_list)
+            # negative
+            rate_list = [te_fragments[i].get((rep+'-',fam),1)/float(fragments[i]) for i in range(len(bam_files))]
+            te_fragment_rates[(rep+'-',fam)] = stats.geo_mean(rate_list)
+        else:
+            rate_list = [te_fragments[i].get((rep,fam),1)/float(fragments[i]) for i in range(len(bam_files))]
+            te_fragment_rates[(rep,fam)] = stats.geo_mean(rate_list)
 
     if control_bam_files:
         control_te_fragment_rates = {}
-        for te in te_lengths:
+        for te in te_fragment_rates:
             rate_list = [control_te_fragments[i].get(te,1)/float(control_fragments[i]) for i in range(len(control_bam_files))]
             control_te_fragment_rates[te] = stats.geo_mean(rate_list)
 
     ############################################
     # compute stats, print table
     ############################################
-    for (rep,fam) in te_lengths:
+    for (rep,fam) in te_fragment_rates:
         # compute TE length
         if options.strand_split:
             te_len = te_lengths[(rep[:-1],fam)]
