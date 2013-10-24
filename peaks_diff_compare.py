@@ -1,13 +1,7 @@
 #!/usr/bin/env python
 from optparse import OptionParser
 import os, subprocess
-import gff, stats
-
-from rpy2.robjects.packages import importr
-import rpy2.robjects as ro
-import rpy2.robjects.lib.ggplot2 as ggplot2
-
-grdevices = importr('grDevices')
+import ggplot, gff, stats
 
 ################################################################################
 # peaks_diff_compare.py
@@ -23,8 +17,10 @@ def main():
     usage = 'usage: %prog [options] <peaks gff> <diff>'
     parser = OptionParser(usage)
     parser.add_option('-c', dest='control_fpkm_file', help='Control FPKM tracking file')
-    parser.add_option('-g', dest='ref_gtf', default='%s/gencode.v15.annotation.gtf'%os.environ['GENCODE'])
+    parser.add_option('-g', dest='ref_gtf', default='%s/gencode.v18.annotation.gtf'%os.environ['GENCODE'])
     parser.add_option('-o', dest='output_pre', default='', help='Output prefix [Default: %default]')
+    parser.add_option('--sample1', dest='sample1', help='Sample_1 name in cuffdiff')
+    parser.add_option('--sample2', dest='sample2', help='Sample_2 name in cuffdiff')
     (options,args) = parser.parse_args()
 
     if len(args) != 2:
@@ -45,8 +41,6 @@ def main():
         peak_genes.add(gff.gtf_kv(line.split('\t')[8])['gene_id'])
     p.communicate()
 
-    print '%d bound genes' % len(peak_genes)
-
     # store test stats
     bound_tstats = []
     unbound_tstats = []
@@ -57,45 +51,38 @@ def main():
         a = line.split('\t')
 
         gene_id = a[0]
+        sample1 = a[4]
+        sample2 = a[5]
         status = a[6]
         fpkm1 = float(a[7])
         fpkm2 = float(a[8])
         tstat = float(a[10])
 
         if a[6] == 'OK':
-            if gene_id in peak_genes:
-                bound_tstats.append(tstat)
-            else:
-                if not gene_id in silent_genes:
-                    unbound_tstats.append(tstat)
+            if options.sample1 in [None,sample1] and options.sample2 in [None,sample2]:
+                if gene_id in peak_genes:
+                    bound_tstats.append(tstat)
+                else:
+                    if not gene_id in silent_genes:
+                        unbound_tstats.append(tstat)
+
+    print '%d silent genes' % len(silent_genes)
+    print '%d bound genes' % len(bound_tstats)
+    print '%d unbound genes' % len(unbound_tstats)
 
     # perform statistical test
     z, p = stats.mannwhitneyu(bound_tstats, unbound_tstats)
     print z, p
 
     # construct data frame
-    df = ro.DataFrame({'Peak':ro.StrVector(['Yes']*len(bound_tstats) + ['No']*len(unbound_tstats)),
-                       'Test_stat':ro.FloatVector(bound_tstats+unbound_tstats)})
+    df_dict = {'Peak':(['Yes']*len(bound_tstats) + ['No']*len(unbound_tstats)),
+               'Test_stat':bound_tstats+unbound_tstats}
 
-    # construct box plot
-    gp = ggplot2.ggplot(df) + \
-        ggplot2.aes_string(x='Peak', y='Test_stat') + \
-        ggplot2.geom_boxplot()
+    r_script = '%s/peaks_diff_compare.r' % os.environ['GGPLOT']
 
-    # plot to file
-    grdevices.pdf(file='%s_box.pdf' % options.output_pre)
-    gp.plot()
-    grdevices.dev_off()
+    output_pdf = '%s_dens.pdf' % options.output_pre
 
-    # construct density plot
-    gp = ggplot2.ggplot(df) + \
-        ggplot2.aes_string(x='Test_stat', colour='Peak') + \
-        ggplot2.geom_density()
-
-    # plot to file
-    grdevices.pdf(file='%s_dens.pdf' % options.output_pre)
-    gp.plot()
-    grdevices.dev_off()
+    ggplot.plot(r_script, df_dict, [output_pdf])
     
 
 ################################################################################
