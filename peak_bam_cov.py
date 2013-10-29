@@ -1,19 +1,13 @@
 #!/usr/bin/env python
 from optparse import OptionParser
-from rpy2.robjects.packages import importr
-import rpy2.robjects as ro
-import rpy2.robjects.lib.ggplot2 as ggplot2
-import os, pdb, shutil, subprocess, sys, tempfile
+import os, pdb, shutil, stats, subprocess, sys, tempfile
 import pysam
-import gff
-
-grdevices = importr('grDevices')
+import gff, ggplot
 
 ################################################################################
-# peak_bam_plot.py
+# peak_bam_cov.py
 #
-# Plot read coverage in a BAM file surrounding the median points of peaks
-# in a GFF file.
+# Plot read coverage in a BAM file surrounding the median points of GFF entries
 ################################################################################
 
 ################################################################################
@@ -23,10 +17,11 @@ def main():
     usage = 'usage: %prog [options] <gff> <bam>'
     parser = OptionParser(usage)
     #parser.add_option('-c', dest='control_bam_file', default=None, help='Control BAM file')
+    parser.add_option('-g', dest='geo_mean', default=False, action='store_true', help='Compute geometric mean of individual peak coverages [Default: %default]')
     parser.add_option('-i', dest='individual_plots', default=False, action='store_true', help='Print a coverage plot for every individual peak [Default: %default]')
     parser.add_option('-o', dest='out_prefix', default='peak_cov', help='Output prefix [Default: %default]')
     parser.add_option('-p', dest='properly_paired', default=False, action='store_true', help='Count entire fragments for only properly paired reads [Default: %default]')
-    parser.add_option('-u', dest='range', default=300, type='int', help='Range around peak middle [Default: %default]')
+    parser.add_option('-u', dest='range', default=500, type='int', help='Range around peak middle [Default: %default]')
     (options,args) = parser.parse_args()
 
     if len(args) != 2:
@@ -60,7 +55,7 @@ def main():
         if aligned_read.opt('NH') > 1:
             multi_maps[aligned_read.qname] = aligned_read.opt('NH')
 
-    # extend peaks to range
+    # extend GFF entries to range
     peaks_gff_range_fd, peaks_gff_range_file = tempfile.mkstemp()
     peaks_gff_range_out = open(peaks_gff_range_file, 'w')
     for line in open(peaks_gff):
@@ -77,7 +72,6 @@ def main():
     peaks_gff_range_out.close()
 
     # initialize coverage counters
-    peak_cov = [0.0]*(1+options.range)
     peak_cov_individual = {}
     peak_reads = {}
 
@@ -92,9 +86,9 @@ def main():
 
         # because intersectBed screws up indels near endpoints
         if rstart < rend:
-            pstart = int(a[9])
-            pend = int(a[10])
-            peak_id = gff.gtf_kv(a[14])['id']
+            pstart = int(a[15])
+            pend = int(a[16])
+            peak_id = gff.gtf_kv(a[20])['id']
             peak_reads[peak_id] = peak_reads.get(peak_id,0) + 1
 
             peak_mid = pstart + (pend-pstart)/2
@@ -104,20 +98,23 @@ def main():
             range_start = max(rstart, peak_range_start)
             range_end = min(rend, peak_range_end)
 
+            if not peak_id in peak_cov_individual:
+                peak_cov_individual[peak_id] = [0.0]*(1+options.range)
             for i in range(range_start - peak_range_start, range_end - peak_range_start + 1):
-                peak_cov[i] += 1.0/multi_maps.get(rheader,1)
-
-            if options.individual_plots:
-                if not peak_id in peak_cov_individual:
-                    peak_cov_individual[peak_id] = [0.0]*(1+options.range)
-                for i in range(range_start - peak_range_start, range_end - peak_range_start + 1):
-                    peak_cov_individual[peak_id][i] += 1.0/multi_maps.get(rheader,1)
-
+                peak_cov_individual[peak_id][i] += 1.0/multi_maps.get(rheader,1)
 
     p.communicate()
 
-    for peak_id in peak_reads:
-        print peak_id, peak_reads[peak_id]
+    # combine individual
+    peak_cov = [0.0]*(1+options.range)
+    for i in range(len(peak_cov)):
+        if options.geo_mean:
+            peak_cov[i] = stats.geo_mean([1+peak_cov_individual[peak_id][i] for peak_id in peak_cov_individual])
+        else:
+            peak_cov[i] = stats.mean([peak_cov_individual[peak_id][i] for peak_id in peak_cov_individual])
+
+    #for peak_id in peak_reads:
+    #    print peak_id, peak_reads[peak_id]
 
     # output
     make_output(peak_cov, options.out_prefix, options.range)
@@ -149,22 +146,14 @@ def make_output(peak_cov, out_prefix, prange):
         print >> raw_out, '%d\t%e' % (i, peak_cov[i+prange/2])
     raw_out.close()
 
-    # make plot data structures
-    peak_i = ro.IntVector(range(-prange/2,prange/2+1))
-    cov = ro.FloatVector(peak_cov)
-    df = ro.DataFrame({'peak_i':peak_i, 'cov':cov})
+    r_script = '%s/peak_bam_plot.r' % os.environ['GGPLOT']
 
-    # construct full plot
-    gp = ggplot2.ggplot(df) + \
-        ggplot2.aes_string(x='peak_i', y='cov') + \
-        ggplot2.geom_point() + \
-        ggplot2.scale_x_continuous('Peak index') + \
-        ggplot2.scale_y_continuous('Coverage')
+    df_dict = {'peak_i':range(-prange/2,prange/2+1),
+               'cov':peak_cov}
 
-    # plot to file
-    grdevices.pdf(file='%s.pdf' % out_prefix)
-    gp.plot()
-    grdevices.dev_off()
+    out_pdf = '%s.pdf' % out_prefix
+
+    ggplot.plot(r_script, df_dict, [out_pdf])
 
 
 ################################################################################

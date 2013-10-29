@@ -178,8 +178,11 @@ def median(ls):
 #
 # Return mean of a list
 ############################################################
-def mean(ls):    
-    return float(sum(ls)) / float(len(ls))
+def mean(ls):
+    if len(ls) == 0:
+        return 0
+    else:
+        return float(sum(ls)) / float(len(ls))
 
     
 ############################################################
@@ -264,7 +267,7 @@ def sd(ls):
 #
 # Sample from a list of items according to given probabilities
 ################################################################################
-def sample_probs(items, probs, count):
+def sample_probs(items, probs, count=1):
     # compute cumulative probabilities
     cum_probs = [0]*len(probs)
     cum_probs[0] = probs[0]

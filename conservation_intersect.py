@@ -35,18 +35,14 @@ def main():
     if not os.path.isdir(cons_dir):
         parser.error('Must specify conservation type as "phylop" or "phastcons"')
 
-    # merge gff entries
-    print >> sys.stderr, 'Merging gff entries ...',
-    p = subprocess.Popen('sortBed -i %s | mergeBed > %s.mrg' % (gff_file,gff_file), shell=True)
-    os.waitpid(p.pid, 0)
-    print >> sys.stderr, 'Done'
-
     # build interval trees
     print >> sys.stderr, 'Building interval trees ...',
     chr_features = {}
-    for line in open(gff_file+'.mrg'):
+    p = subprocess.Popen('sortBed -i %s | mergeBed' % gff_file, shell=True, stdout=subprocess.PIPE)
+    for line in p.stdout:
         a = line.split('\t')
         chr_features.setdefault(a[0], IntervalTree()).insert_interval( Interval(int(a[1]),int(a[2])) )
+    p.communicate()
     print >> sys.stderr, 'Done'
         
     # process overlapping chromosome blocks

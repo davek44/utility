@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 from optparse import OptionParser
-import gff, sys
+import pdb, os
+import pysam
 
 ################################################################################
-# gff2bed.py
+# bam_12.py
 #
-# Convert a gff file to a bed file. Each entry is converted independently,
-# so no blocks.
+# Separate the alignments in a BAM file into two BAM files of the first and
+# second reads.
 ################################################################################
 
 
@@ -14,28 +15,35 @@ import gff, sys
 # main
 ################################################################################
 def main():
-    usage = 'usage: %prog [options] <gff file>'
+    usage = 'usage: %prog [options] <bam file>'
     parser = OptionParser(usage)
-    #parser.add_option()
     (options,args) = parser.parse_args()
 
     if len(args) != 1:
-        parser.error('Must provide gff file')
+        parser.error('Must provide bam file')
     else:
-        if args[0] == '-':
-            gff_open = sys.stdin
+        bam_file = args[0]
+
+    bam_pre = os.path.splitext(bam_file)[0]
+
+    bam_in = pysam.Samfile(bam_file, 'rb')
+    bam1_out = pysam.Samfile('%s_1.bam'%bam_pre, 'wb', header=bam_in.header)
+    bam2_out = pysam.Samfile('%s_2.bam'%bam_pre, 'wb', header=bam_in.header)
+
+    for read in bam_in:
+        if read.is_read1:
+            bam1_out.write(read)
         else:
-            gff_open = open(args[0])
+            bam2_out.write(read)
 
-    for line in gff_open:
-        a = line.split('\t')
+    bam_in.close()
+    bam1_out.close()
+    bam2_out.close()
 
-        cols = [a[0], str(int(a[3])-1), a[4], a[2], '0', a[6], '0', '0', '255,0,0', '1', str(int(a[4])-int(a[3])+1), '0']
-        print '\t'.join(cols)
-    
 
 ################################################################################
 # __main__
 ################################################################################
 if __name__ == '__main__':
     main()
+    #pdb.runcall(main)

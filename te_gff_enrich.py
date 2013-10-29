@@ -12,6 +12,9 @@ import fdr, gff, stats
 #
 # Note:
 #  -The statistics here assume consistently-sized features.
+#  -For a filter GFF, I'm using "-f 0.5" so stuff doesn't need to be fully
+#   contained in the reference feature. This might be kind of wrong in some
+#   cases like the exonic transcriptome. But it shouldn't be too bad.
 ################################################################################
 
 ################################################################################

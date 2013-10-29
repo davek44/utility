@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 from optparse import OptionParser
-import gzip, pdb, os, sys
+import gzip, os, pdb, sys
 import dna, gff
 
 ################################################################################

@@ -1,14 +1,7 @@
 #!/usr/bin/env python
 from optparse import OptionParser
-from scipy.stats import spearmanr, pearsonr
-from collections import Counter
 import math, os, subprocess, pdb, shutil, sys
-import cufflinks, fdr, gff, stats
-
-from rpy2.robjects.packages import importr
-import rpy2.robjects as ro
-import rpy2.robjects.lib.ggplot2 as ggplot2
-grdevices = importr('grDevices')
+import gff, ggplot, stats
 
 ################################################################################
 # cuff_scatter.py
@@ -81,36 +74,18 @@ def main():
     for cond_key in gene_diffs:
         cond1, cond2 = cond_key
 
-        # title plot
-        plot_title = '%s vs %s' % (cond1,cond2)
-
         # set statistic range        
         #stat_min = stats.quantile(gene_diffs[cond_key], .005)
         #stat_max = stats.quantile(gene_diffs[cond_key], .995)
 
-        # construct data frame
-        fpkm1_r = ro.FloatVector([math.log(fpkm+options.pseudocount,2) for fpkm in gene_fpkm1[cond_key]])
-        fpkm2_r = ro.FloatVector([math.log(fpkm+options.pseudocount,2) for fpkm in gene_fpkm2[cond_key]])
-        qvals_r = ro.FloatVector([math.log(qval+1e-15,10) for qval in gene_qvals[cond_key]])
+        df_dict = {}
+        df_dict['fpkm1'] = [math.log(fpkm+options.pseudocount,2) for fpkm in gene_fpkm1[cond_key]]
+        df_dict['fpkm2'] = [math.log(fpkm+options.pseudocount,2) for fpkm in gene_fpkm2[cond_key]]
+        df_dict['qval'] = [math.log(qval+1e-15,10) for qval in gene_qvals[cond_key]]
 
-        df = ro.DataFrame({'fpkm1':fpkm1_r, 'fpkm2':fpkm2_r, 'qval':qvals_r})
+        output_pdf = '%s_scatter/%s_%s.pdf' % (options.out_dir_pre,cond1,cond2)
 
-        # plot
-        gp = ggplot2.ggplot(df) + \
-            ggplot2.aes_string(x='fpkm1', y='fpkm2', colour='qval') + \
-            ggplot2.geom_point(size=1.5, alpha=.3) + \
-            ggplot2.scale_x_continuous('%s log2 FPKM' % cond1) + \
-            ggplot2.scale_y_continuous('%s log2 FPKM' % cond2) + \
-            ggplot2.geom_abline(intercept=0, slope=1, linetype=2) + \
-            ggplot2.opts(title=plot_title) + \
-            ggplot2.theme_bw()
-
-        #ggplot2.scale_colour_gradient(low='red') + \
-        
-        # save to file
-        grdevices.pdf(file='%s_scatter/%s_%s.pdf' % (options.out_dir_pre,cond1,cond2))
-        gp.plot()
-        grdevices.dev_off()
+        ggplot.plot('%s/cuff_scatter.r' % os.environ['GGPLOT'], df_dict, [output_pdf,cond1,cond2])
 
 
 ################################################################################
