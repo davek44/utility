@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 from optparse import OptionParser
-import gzip, os, sys
+import gzip, pdb, os, sys
 import dna, gff
 
 ################################################################################
@@ -103,3 +103,4 @@ def header_gff(header, seq, gff_file, options):
 ################################################################################
 if __name__ == '__main__':
     main()
+    #pdb.runcall(main)
