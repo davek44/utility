@@ -25,6 +25,7 @@ def main():
     parser = OptionParser(usage)
     parser.add_option('-g', dest='filter_gff', help='Filter the TEs by overlap with genes in the given gff file [Default: %default]')
     parser.add_option('-r', dest='repeats_gff', default='%s/research/common/data/genomes/hg19/annotation/repeatmasker/hg19.fa.out.tp.gff' % os.environ['HOME'])
+    parser.add_option('-s', dest='strand_split', default=False, action='store_true', help='Split statistics by strand [Default: %default]')
     (options,args) = parser.parse_args()
 
     if len(args) != 1:
@@ -53,18 +54,18 @@ def main():
     ############################################
     # lengths
     ############################################
-    # compute size of search space
-    if options.filter_gff:
-        genome_length = count_bed(filter_merged_bed_file)
-    else:
-        genome_length = count_hg19()
-
     # compute feature length
-    feature_len, feature_num = feature_stats(feature_gff)
+    feature_len, feature_num = feature_stats(feature_gff)    
 
     if feature_num == 0:
         print >> sys.stderr, 'Zero features'
         exit()
+
+    # compute size of search space
+    if options.filter_gff:
+        genome_length = count_bed(filter_merged_bed_file, feature_len)
+    else:
+        genome_length = count_hg19()
 
     # hash counted repeat genomic bp
     te_lengths = te_target_size(options.repeats_gff, feature_len)
@@ -72,7 +73,21 @@ def main():
     ############################################
     # hash TE/feature overlaps
     ############################################
+    # initialize
     te_features = {}
+    for rep, fam in te_lengths:
+        if options.strand_split:
+            te_features[(rep+'+',fam)] = set()
+            te_features[('*+',fam)] = set()
+            te_features[('*+','*')] = set()
+            te_features[(rep+'-',fam)] = set()
+            te_features[('*-',fam)] = set()
+            te_features[('*-','*')] = set()
+        else:
+            te_features[(rep,fam)] = set()
+            te_features[('*',fam)] = set()
+            te_features[('*','*')] = set()
+        
     p = subprocess.Popen('intersectBed -wo -a %s -b %s' % (options.repeats_gff,feature_gff), shell=True, stdout=subprocess.PIPE)
     for line in p.stdout:
         a = line.split('\t')
@@ -85,9 +100,21 @@ def main():
         fstart = int(a[12])
         fend = int(a[13])
 
-        te_features.setdefault((rep,fam),set()).add((fchrom,fstart,fend))
-        te_features.setdefault(('*',fam),set()).add((fchrom,fstart,fend))
-        te_features.setdefault(('*','*'),set()).add((fchrom,fstart,fend))
+        rep_star = '*'
+        if options.strand_split:
+            tstrand = a[6]
+            fstrand = a[15]
+            if tstrand == fstrand:
+                rep += '+'
+                rep_star += '+'
+            else:
+                rep += '-'
+                rep_star += '-'
+
+        te_features[(rep,fam)].add((fchrom,fstart,fend))
+        te_features[(rep_star,fam)].add((fchrom,fstart,fend))
+        te_features[(rep_star,'*')].add((fchrom,fstart,fend))
+
     p.communicate()
 
     ############################################SW
@@ -95,8 +122,16 @@ def main():
     ############################################
     lines = []
     p_vals = []
-    for te in te_lengths:
-        te_p = float(te_lengths[te]) / genome_length
+    for te in te_features:
+        rep, fam = te
+
+        if options.strand_split:
+            te_len = te_lengths[(rep[:-1],fam)]
+            te_p = float(te_len) / (2*genome_length)
+        else:
+            te_len = te_lengths[(rep,fam)]
+            te_p = float(te_len) / genome_length
+        
         te_count = len(te_features.get(te,[]))
         exp_count = te_p * feature_num
 
@@ -109,7 +144,7 @@ def main():
         
         p_vals.append(p_val)
 
-        cols = (te[0], te[1], te_lengths[te], te_count, exp_count, fold_change, p_val)
+        cols = (rep, fam, te_len, te_count, exp_count, fold_change, p_val)
         lines.append('%-18s %-18s %8d %8d %8.1f %8.2f %10.2e' % cols)
 
     # correct for multiple hypotheses correction
