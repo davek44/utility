@@ -58,7 +58,7 @@ def main():
         fpkm2 = float(a[8])
         tstat = float(a[10])
 
-        if a[6] == 'OK':
+        if status == 'OK' and not math.isnan(tstat):
             if options.sample1 in [None,sample1] and options.sample2 in [None,sample2]:
                 if gene_id in peak_genes:
                     bound_tstats.append(tstat)
