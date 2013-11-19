@@ -2,7 +2,7 @@
 import numpy as np
 from scipy.stats import rankdata, tiecorrect
 from scipy.stats.distributions import norm
-import math, random
+import math, os, random, subprocess, tempfile
 
 ################################################################################
 # stats.py
@@ -196,6 +196,46 @@ def mean_sd(ls):
     for x in ls:
         dev_sum += (x-u)*(x-u)
     return u, math.sqrt(dev_sum / float(len(ls)))
+
+
+################################################################################
+# mi_parmigene
+#
+# Compute mutual information on continuous arrays using parmigene in R.
+################################################################################
+def mi_parmigene(array1, array2, debug=False):
+    df_dict = {'A':array1, 'B':array2}
+
+    # open temp file
+    if debug:
+        df_file = 'data_frame.txt'
+    else:
+        df_fd, df_file = tempfile.mkstemp()
+    df_out = open(df_file, 'w')
+
+    # print headers
+    print >> df_out, 'A B'
+    
+    # check list lengths
+    length = len(df_dict['A'])
+    if length != len(df_dict['B']):
+        print >> sys.stderr, 'Lists in dict vary in length.'
+        exit(1)
+
+    # print data frame
+    for i in range(length):
+        print >> df_out, '%s %s' % (str(df_dict['A'][i]), str(df_dict['B'][i]))
+    df_out.close()
+
+    # compute in R
+    mi = float(subprocess.check_output('R --slave --args %s < %s/mi_parmigene.r' % (df_file,os.environ['RDIR']), shell=True))
+
+    # clean
+    if not debug:
+        os.close(df_fd)
+        os.remove(df_file)
+
+    return mi
 
 
 ################################################################################
