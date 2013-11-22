@@ -66,7 +66,10 @@ class fpkm_tracking:
             e = 0
             for i in range(len(headers)):
                 if headers[i][-5:] == '_FPKM':
-                    self.expr[g,e] = float(a[i])
+                    if a[i+3] == 'FAIL':
+                        self.expr[g,e] = float('nan')
+                    else:
+                        self.expr[g,e] = float(a[i])
                     if rand_zero and self.expr[g,e] == 0:
                         self.expr[g,e] = abs(norm.rvs(scale=1e-6))
                     e += 1
