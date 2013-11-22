@@ -5,6 +5,6 @@ df.file = ca[1]
 
 df = read.table(df.file, header=T, quote="\"")
 
-mi = knmi(df$A, df$B)
+mi = knnmi(df$A, df$B, k=5)
 
 cat(mi)
