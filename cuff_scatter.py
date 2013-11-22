@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from optparse import OptionParser
 import math, os, subprocess, pdb, shutil, sys
+from scipy.stats import spearmanr
 import gff, ggplot, stats
 
 ################################################################################
@@ -56,8 +57,7 @@ def main():
         test_stat = float(a[10])
         qval = float(a[11])
 
-        #if status == 'OK' and abs(test_stat) < 1e6 and (len(gene_set) == 0 or gene_id in gene_set):
-        if abs(test_stat) < 1e6 and (len(gene_set) == 0 or gene_id in gene_set):
+        if status == 'OK' and not math.isnan(test_stat) and (len(gene_set) == 0 or gene_id in gene_set):
             gene_diffs.setdefault((cond1,cond2),[]).append(test_stat)
             gene_qvals.setdefault((cond1,cond2),[]).append(qval)
             gene_fpkm1.setdefault((cond1,cond2),[]).append(fpkm1)
@@ -83,9 +83,12 @@ def main():
         df_dict['fpkm2'] = [math.log(fpkm+options.pseudocount,2) for fpkm in gene_fpkm2[cond_key]]
         df_dict['qval'] = [math.log(qval+1e-15,10) for qval in gene_qvals[cond_key]]
 
+        rho, pval = spearmanr(df_dict['fpkm1'], df_dict['fpkm2'])
+        print '%-15s  %-15s  %.4f' % (cond1, cond2, rho)
+
         output_pdf = '%s_scatter/%s_%s.pdf' % (options.out_dir_pre,cond1,cond2)
 
-        ggplot.plot('%s/cuff_scatter.r' % os.environ['GGPLOT'], df_dict, [output_pdf,cond1,cond2])
+        ggplot.plot('%s/cuff_scatter.r' % os.environ['RDIR'], df_dict, [output_pdf,cond1,cond2])
 
 
 ################################################################################
