@@ -38,7 +38,7 @@ def main():
     # build interval trees
     print >> sys.stderr, 'Building interval trees ...',
     chr_features = {}
-    p = subprocess.Popen('sortBed -i %s | mergeBed' % gff_file, shell=True, stdout=subprocess.PIPE)
+    p = subprocess.Popen('sortBed -i %s | mergeBed -i -' % gff_file, shell=True, stdout=subprocess.PIPE)
     for line in p.stdout:
         a = line.split('\t')
         chr_features.setdefault(a[0], IntervalTree()).insert_interval( Interval(int(a[1]),int(a[2])) )
