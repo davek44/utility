@@ -28,13 +28,13 @@ def main():
 ################################################################################
 # count
 ################################################################################
-def count(bam_file, mapq=False):
+def count(bam_file, filter_mapq=False):
     # initialize
     bam_count = 0.0
 
     # process
     for aligned_read in pysam.Samfile(bam_file, 'rb'):
-        if mapq == False or aligned_read.mapq > 0:
+        if filter_mapq == False or aligned_read.mapq > 0:
             try:
                 nh_tag = aligned_read.opt('NH')
             except:
