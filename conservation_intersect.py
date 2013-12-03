@@ -23,6 +23,7 @@ import gzip, glob, os, sys, subprocess
 def main():
     usage = 'usage: %prog [options] <gff file>'
     parser = OptionParser(usage)
+    parser.add_option('-b', dest='background_gff', help='GFF file describing valid background sequences [Default: %default] NOT IMPLEMENTED')
     parser.add_option('-l', dest='lncrna', action='store_true', default=False, help='Use the lncRNA specific phastcons file to speed things up [Default: %default]')
     parser.add_option('-c', dest='conservation_type', default='phylop', help='Conservation type to use [phastcons|phylop] [Default: %default]')
     (options,args) = parser.parse_args()
@@ -33,7 +34,7 @@ def main():
 
     cons_dir = '%s/research/common/data/%s' % (os.environ['HOME'],options.conservation_type)
     if not os.path.isdir(cons_dir):
-        parser.error('Must specify conservation type as "phylop" or "phastcons"')
+        parser.error('Must specify conservation type as "phylop" or "phastcons"')    
 
     # build interval trees
     print >> sys.stderr, 'Building interval trees ...',
@@ -44,6 +45,10 @@ def main():
         chr_features.setdefault(a[0], IntervalTree()).insert_interval( Interval(int(a[1]),int(a[2])) )
     p.communicate()
     print >> sys.stderr, 'Done'
+
+    # build background interval trees
+    if options.background_gff:
+        chr_features_bg = sample_background_intervals(gff_file, options.background_gff)
         
     # process overlapping chromosome blocks
     if options.lncrna:
@@ -131,6 +136,44 @@ def process_file(chr_features, pc_file):
 
     pc_f.close()
     print >> sys.stderr, 'Done'
+
+
+################################################################################
+# sample_background_intervals
+#
+# Simulate many datasets of the same size and length distribution from the
+# background sequence specificed.
+#
+# Input
+#  feature_gff:    GFF file of features.
+#  background_gff: GFF file of background sequences from which to simulate
+#                   features.
+#
+# Output
+#  ???
+################################################################################
+def sample_background_intervals(feature_gff, background_gff):
+    # determine length distributions
+    feature_lengths = {}
+    for line in open(feature_gff):
+        a = line.split('\t')
+        flen = int(a[4]) - int(a[3]) + 1
+        feature_lengths[flen] = feature_lengths.get(flen,0) + 1
+
+    # merge background gff
+    background_intervals = []
+    p = subprocess.Popen('sortBed -i %s | mergeBed -i -' % background_gff, shell=True, stdout=subprocess.PIPE)
+    for line in p.stdout:
+        a = line.split('\t')
+        chrom = a[0]
+        start = int(a[1])
+        end = int(a[2])
+
+        # convert to gff
+        background_intervals.append((chrom,start+1,end))
+
+    # sample
+    chr_features_bg = {}
 
 
 ################################################################################
