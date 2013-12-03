@@ -182,30 +182,30 @@ def promoters(gtf_file, promoter_up=2000, promoter_down=0, output_file=None, gue
         output_file = '%s_prom.gtf' % gtf_base
     out = open(output_file, 'w')
 
-    genes = read_genes(gtf_file)
+    transcripts = read_genes(gtf_file)
     source = open(gtf_file).readline().split()[1]
 
-    for gid in genes:
-        g = genes[gid]
+    for tid in transcripts:
+        tx = transcripts[tid]
 
-        if g.strand == '+':
-            if g.exons[0].start-promoter_up >= 1:
-                cols = [g.chrom, source, 'promoter', str(g.exons[0].start-promoter_up), str(g.exons[0].start+promoter_down), '.', g.strand, '.', kv_gtf(g.kv)]
+        if tx.strand == '+':
+            if tx.exons[0].start-promoter_up >= 1:
+                cols = [tx.chrom, source, 'promoter', str(tx.exons[0].start-promoter_up), str(tx.exons[0].start+promoter_down), '.', tx.strand, '.', kv_gtf(tx.kv)]
             else:
-                print >> sys.stderr, 'WARNING: %s discluded for nearness to chromosome end' % gid
+                print >> sys.stderr, 'WARNING: %s discluded for nearness to chromosome end' % tid
                 cols = []
-        elif g.strand == '-':
-            if g.exons[-1].end-promoter_down >= 1:
-                cols = [g.chrom, source, 'promoter', str(g.exons[-1].end-promoter_down), str(g.exons[-1].end+promoter_up), '.', g.strand, '.', kv_gtf(g.kv)]
+        elif tx.strand == '-':
+            if tx.exons[-1].end-promoter_down >= 1:
+                cols = [tx.chrom, source, 'promoter', str(tx.exons[-1].end-promoter_down), str(tx.exons[-1].end+promoter_up), '.', tx.strand, '.', kv_gtf(tx.kv)]
             else:
-                print >> sys.stderr, 'WARNING: %s discluded for nearness to chromosome end' % gid
+                print >> sys.stderr, 'WARNING: %s discluded for nearness to chromosome end' % tid
                 cols = []
         else:
             if guess_strand:
-                print >> sys.stderr, 'WARNING: %s guessing forward strand' % gid
-                cols = [g.chrom, source, 'promoter', str(g.exons[0].start-promoter_up), str(g.exons[0].start+promoter_down), '.', '+', '.', kv_gtf(g.kv)]
+                print >> sys.stderr, 'WARNING: %s guessing forward strand' % tid
+                cols = [tx.chrom, source, 'promoter', str(tx.exons[0].start-promoter_up), str(tx.exons[0].start+promoter_down), '.', '+', '.', kv_gtf(tx.kv)]
             else:
-                print >> sys.stderr, 'WARNING: %s discluded for lack of strand' % gid
+                print >> sys.stderr, 'WARNING: %s discluded for lack of strand' % tid
                 cols = []
 
         if cols:
