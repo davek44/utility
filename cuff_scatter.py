@@ -35,7 +35,6 @@ def main():
             gene_set.add(gid)
 
     # initialize diff data structures
-    gene_diffs = {}
     gene_fpkm1 = {}
     gene_fpkm2 = {}
     gene_qvals = {}
@@ -58,7 +57,6 @@ def main():
         qval = float(a[11])
 
         if status == 'OK' and not math.isnan(test_stat) and (len(gene_set) == 0 or gene_id in gene_set):
-            gene_diffs.setdefault((cond1,cond2),[]).append(test_stat)
             gene_qvals.setdefault((cond1,cond2),[]).append(qval)
             gene_fpkm1.setdefault((cond1,cond2),[]).append(fpkm1)
             gene_fpkm2.setdefault((cond1,cond2),[]).append(fpkm2)
@@ -71,12 +69,8 @@ def main():
         shutil.rmtree('%s_scatter' % options.out_dir_pre)
     os.mkdir('%s_scatter' % options.out_dir_pre)
 
-    for cond_key in gene_diffs:
+    for cond_key in gene_qvals:
         cond1, cond2 = cond_key
-
-        # set statistic range        
-        #stat_min = stats.quantile(gene_diffs[cond_key], .005)
-        #stat_max = stats.quantile(gene_diffs[cond_key], .995)
 
         df_dict = {}
         df_dict['fpkm1'] = [math.log(fpkm+options.pseudocount,2) for fpkm in gene_fpkm1[cond_key]]
