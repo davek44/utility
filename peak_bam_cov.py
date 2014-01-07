@@ -146,7 +146,7 @@ def make_output(peak_cov, out_prefix, prange):
         print >> raw_out, '%d\t%e' % (i, peak_cov[i+prange/2])
     raw_out.close()
 
-    r_script = '%s/peak_bam_plot.r' % os.environ['GGPLOT']
+    r_script = '%s/peak_bam_plot.r' % os.environ['RDIR']
 
     df_dict = {'peak_i':range(-prange/2,prange/2+1),
                'cov':peak_cov}

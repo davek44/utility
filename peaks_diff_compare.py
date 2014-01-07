@@ -78,7 +78,7 @@ def main():
     df_dict = {'Peak':(['Yes']*len(bound_tstats) + ['No']*len(unbound_tstats)),
                'Test_stat':bound_tstats+unbound_tstats}
 
-    r_script = '%s/peaks_diff_compare.r' % os.environ['GGPLOT']
+    r_script = '%s/peaks_diff_compare.r' % os.environ['RDIR']
 
     output_pdf = '%s_dens.pdf' % options.output_pre
 

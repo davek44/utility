@@ -56,7 +56,7 @@ def main():
                 df['FPKM'].append(math.log(ge[i]+options.min_fpkm,2))
 
     # plot
-    ggplot.plot('%s/cuff_heat.r' % os.environ['GGPLOT'], df, [options.out_pdf], debug=True)
+    ggplot.plot('%s/cuff_heat.r' % os.environ['RDIR'], df, [options.out_pdf], debug=True)
 
 
 ################################################################################
