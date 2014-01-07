@@ -72,12 +72,16 @@ def header_bed(header, seq, bed_file, options):
             feat_start = int(a[1])
             feat_end = int(a[2])
 
+            feat_strand = '+'
+            if len(a) > 5 and  a[5] == '-':
+                feat_strand = '-'
+
             feat_header = ''
-            if a[3] != '.':
+            if len(a) > 3 and a[3] != '.':
                 feat_header = a[3] + ':'
-            feat_header += '%s:%d-%d:%s' % (header,feat_start,feat_end,a[5])
+            feat_header += '%s:%d-%d:%s' % (header,feat_start,feat_end,feat_strand)
             
-            if a[5] == '+':
+            if feat_strand == '+':
                 feat_seq = seq[feat_start:feat_end]
             else:
                 feat_seq = dna.rc(seq[feat_start:feat_end])
