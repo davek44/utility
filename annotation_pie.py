@@ -118,7 +118,7 @@ def main():
         pie_df['annotation'].append(annotation_labels[ann])
         pie_df['count'].append(annotation_reads[ann])
 
-    ggplot.plot('%s/annotation_pie_pie.r'%os.environ['GGPLOT'], pie_df, [options.title, '%s_pie.pdf'%options.output_prefix])
+    ggplot.plot('%s/annotation_pie_pie.r'%os.environ['RDIR'], pie_df, [options.title, '%s_pie.pdf'%options.output_prefix])
 
     ############################################
     # read:length ratio
@@ -128,7 +128,7 @@ def main():
         ratio_df['annotation'].append(annotation_labels[ann])
         ratio_df['ratio'].append(annotation_ratio[ann])
 
-    ggplot.plot('%s/annotation_pie_ratios.r'%os.environ['GGPLOT'], ratio_df, [options.title, '%s_ratios.pdf'%options.output_prefix])
+    ggplot.plot('%s/annotation_pie_ratios.r'%os.environ['RDIR'], ratio_df, [options.title, '%s_ratios.pdf'%options.output_prefix])
 
 
 ################################################################################
