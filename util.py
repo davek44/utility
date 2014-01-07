@@ -28,6 +28,8 @@ def exec_par(cmds, max_proc, print_cmd=False):
 
     if max_proc == 1:
         while finished < total:
+            if print_cmd:
+                print cmds[finished]
             op = subprocess.Popen(cmds[finished], shell=True)
             os.waitpid(op.pid, 0)
             finished += 1
