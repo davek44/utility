@@ -94,12 +94,21 @@ def extend(gtf_file, extend_5p=2000, extend_3p=2000, output_file=None):
 #
 # Given a gtf file, return a mapping of gene_id's to sets of transcript_id's
 ################################################################################
-def g2t(gtf_file='%s/research/common/data/lncrna/lnc_catalog.gtf' % os.environ['HOME']):
+def g2t(gtf_file):
     d = {}
-    for line in open(gtf_file):
+
+    gtf_in = open(gtf_file)
+
+    # ignore header
+    line = gtf_in.readline()
+    while line[:2] == '##':
+        line = gtf_in.readline()
+
+    for line in gtf_in:
         a = line.split('\t')
         kv = gtf_kv(a[8])
         d.setdefault(kv['gene_id'],set()).add(kv['transcript_id'])
+
     return d
 
 
