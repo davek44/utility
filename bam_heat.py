@@ -15,21 +15,25 @@ import count_reads, gff, ggplot
 # main
 ################################################################################
 def main():
-    usage = 'usage: %prog [options] <gff> <bam>'
+    usage = 'usage: %prog [options] <gff> <bam1,bam2,...>'
     parser = OptionParser(usage)
-    parser.add_option('-c', dest='control_bam_file', default=None, help='Control BAM file')
+    parser.add_option('-c', dest='control_bam_files', default=None, help='Control BAM files (comma separated)')
     parser.add_option('-l', dest='log', default=False, action='store_true', help='log2 coverage [Default: %default]')
+    parser.add_option('-k', dest='gtf_key', default=None, help='GTF key to hash gff entries by')
     parser.add_option('-m', dest='max_features', default=2000, type='int', help='Maximum number of features to plot [Default: %default]')
     parser.add_option('-o', dest='output_pre', default='bam', help='Output prefix [Default: %default]')
-    parser.add_option('-s', dest='sorted', help='Plot heatmap in order of GFF [Default: %default]')
-    parser.add_option('-u', dest='range', default=600, type='int', help='Range around peak middle [Default: %default]')
+    parser.add_option('-s', dest='sorted_gene_files', help='Files of sorted gene lists. Plot heatmaps in their order')
+    parser.add_option('-u', dest='range', default=2000, type='int', help='Range around peak middle [Default: %default]')
     (options,args) = parser.parse_args()
 
     if len(args) != 2:
         parser.error('Must provide gtf file and BAM file')
     else:
         gff_file = args[0]
-        bam_file = args[1]
+        bam_files = args[1].split(',')
+
+    if options.control_bam_files:
+        control_bam_files = options.control_bam_files.split(',')
 
     ############################################
     # extend GFF entries to range (and sample)
@@ -60,112 +64,124 @@ def main():
     ############################################
     # compute coverage
     ############################################
-    coverage = compute_coverage(gff_range_file, bam_file)
-    if options.control_bam_file:
-        coverage_control = compute_coverage(gff_range_file, options.control_bam_file)
+    coverage, fragments = compute_coverage(gff_range_file, bam_files, options.gtf_key)
+    if options.control_bam_files:
+        coverage_control, fragments_control = compute_coverage(gff_range_file, control_bam_files, options.gtf_key)
+
+    # clean
+    os.close(gff_range_fd)
+    os.remove(gff_range_file)
 
     ############################################
     # normalize
     ############################################
-    # compute total fragments
-    fragments = float(count_reads.count(bam_file, filter_mapq=True))
-    if options.control_bam_file:
-        fragments_control = float(count_reads.count(options.control_bam_file, filter_mapq=True))
-
-    # normalize coverages
-    for gff_entry in coverage:
-        for i in range(len(coverage[gff_entry])):
-            coverage[gff_entry][i] /= fragments
-            if options.control_bam_file:
-                coverage_control[gff_entry][i] /= fragments_control
+    # normalize coverages (and add pseudocounts)
+    for feature_id in coverage:
+        for i in range(len(coverage[feature_id])):
+            coverage[feature_id][i] = (1+coverage[feature_id][i])/fragments
+            if options.control_bam_files:
+                coverage_control[feature_id][i] = (1+coverage_control[feature_id][i])/fragments_control
 
     ############################################
-    # plot heatmap
+    # sorted genes
     ############################################
-    if options.sorted:
-        # gff file was sorted
-        gff_entries_sorted = []
-        for line in open(gff_range_file):
-            a = line.split('\t')
-            gchrom = a[0]
-            gstart = int(a[3])
-            gend = int(a[4])
-            gff_entries_sorted.append((gchrom,gstart,gend))
+    features_sorted = []
+    if options.sorted_gene_files:
+        # for each sorted list
+        for sorted_gene_file in options.sorted_gene_files.split(','):
+            # collect feature_id's
+            features_sorted.append([])
+            for line in open(sorted_gene_file):
+                feature_id = line.split()[0]
+                # verify randomly selected
+                if feature_id in coverage:
+                    features_sorted[-1].append(feature_id)
 
     else:
-        # sort by mean
-        gff_entry_stat = []
-        for gff_entry in coverage:
-            if options.control_bam_file:
-                gff_stat = stats.mean([math.log(1+coverage[gff_entry][i],2) - math.log(1+coverage_control[gff_entry][i],2) for i in range(len(coverage[gff_entry]))])
+        # tuple feature_id's with mean coverage
+        feature_id_stat = []
+        for feature_id in coverage:
+            if options.control_bam_files:
+                feature_stat = stats.mean([math.log(coverage[feature_id][i],2) - math.log(coverage_control[feature_id][i],2) for i in range(len(coverage[feature_id]))])
             else:
-                gff_stat = stats.mean([coverage[gff_entry][i] for i in range(len(coverage[gff_entry]))])
+                feature_stat = stats.geo_mean([coverage[feature_id][i] for i in range(len(coverage[feature_id]))])
 
-            gff_entry_stat.append((gff_stat,gff_entry))
+            feature_id_stat.append((feature_stat,feature_id))
 
-        gff_entry_stat.sort(reverse=True)
+        # sort
+        feature_id_stat.sort(reverse=True)
 
-        gff_entries_sorted = [gff_entry for (gff_stat, gff_entry) in gff_entry_stat]
+        # store as the only sorted list
+        features_sorted.append([feature_id for (feature_stat, feature_id) in feature_id_stat])
 
-    df = {'Index':[], 'Feature':[], 'Coverage':[]}
-    for g in range(len(gff_entries_sorted)):
-        gff_entry = gff_entries_sorted[g]
-        for i in range(-options.range/2,options.range/2+1):
-            df['Index'].append(i)
-            df['Feature'].append(g)
+    ############################################
+    # plot heatmap(s)
+    ############################################
+    # if multiple sorts, create a dir for the plots
+    if len(features_sorted) > 1:
+        if not os.path.isdir('%s_heat' % options.output_pre):
+            os.mkdir('%s_heat' % options.output_pre)
 
-            if options.log:
-                cov = math.log(1+coverage[gff_entry][-options.range/2+i],2)
-            else:
-                cov = coverage[gff_entry][-options.range/2+i]
+    for s in range(len(features_sorted)):
+        df = {'Index':[], 'Feature':[], 'Coverage':[]}
+        for f in range(len(features_sorted[s])):
+            feature_id = features_sorted[s][f]
+            for i in range(-options.range/2,options.range/2+1):
+                df['Index'].append(i)
+                df['Feature'].append(f)
 
-            if options.control_bam_file:
                 if options.log:
-                    cov -= math.log(1+coverage_control[gff_entry][-options.range/2+i],2)
+                    cov = math.log(coverage[feature_id][-options.range/2+i],2)
                 else:
-                    cov = (1+cov) / (1+coverage_control[gff_entry][-options.range/2+i])
+                    cov = coverage[feature_id][-options.range/2+i]
 
-            df['Coverage'].append('%.4e' % cov)
+                if options.control_bam_files:
+                    if options.log:
+                        cov -= math.log(coverage_control[feature_id][-options.range/2+i],2)
+                    else:
+                        cov = cov / coverage_control[feature_id][-options.range/2+i]
 
-    r_script = '%s/bam_heat_heat.r' % os.environ['RDIR']
-    out_pdf = '%s_heat.pdf' % options.output_pre
+                df['Coverage'].append('%.4e' % cov)
 
-    ggplot.plot(r_script, df, [out_pdf], debug=True)
+        r_script = '%s/bam_heat_heat.r' % os.environ['RDIR']
+        if len(features_sorted) == 1:
+            out_pdf = '%s_heat.pdf' % options.output_pre
+        else:
+            sorted_gene_file = options.sorted_gene_files.split(',')[s]
+            sorted_gene_pre = os.path.splitext(os.path.split(sorted_gene_file)[-1])[0]
+            out_pdf = '%s_heat/%s.pdf' % (options.output_pre,sorted_gene_pre)
+
+        ggplot.plot(r_script, df, [out_pdf])
 
     ############################################
     # plot meta-coverage
     ############################################
     df = {'Index':[], 'Coverage':[]}
-    if options.control_bam_file:
+    if options.control_bam_files:
         df['Type'] = []
 
     for i in range(-options.range/2,options.range/2+1):
         df['Index'].append(i)
 
         if options.log:
-            df['Coverage'].append(stats.geo_mean([(1+coverage[gff_entry][-options.range/2+i]) for gff_entry in coverage]))
+            df['Coverage'].append(stats.geo_mean([coverage[feature_id][-options.range/2+i] for feature_id in coverage]))
         else:
-            df['Coverage'].append(stats.mean([coverage[gff_entry][-options.range/2+i] for gff_entry in coverage]))
+            df['Coverage'].append(stats.mean([coverage[feature_id][-options.range/2+i] for feature_id in coverage]))
 
-        if options.control_bam_file:
+        if options.control_bam_files:
             df['Type'].append('Primary')
 
             df['Index'].append(i)
             df['Type'].append('Control')
             if options.log:
-                df['Coverage'].append(stats.geo_mean([(1+coverage_control[gff_entry][-options.range/2+i]) for gff_entry in coverage_control]))
+                df['Coverage'].append(stats.geo_mean([coverage_control[feature_id][-options.range/2+i] for feature_id in coverage_control]))
             else:
-                df['Coverage'].append(stats.mean([coverage_control[gff_entry][-options.range/2+i] for gff_entry in coverage_control]))
+                df['Coverage'].append(stats.mean([coverage_control[feature_id][-options.range/2+i] for feature_id in coverage_control]))
 
     r_script = '%s/bam_heat_meta.r' % os.environ['RDIR']
     out_pdf = '%s_meta.pdf' % options.output_pre
 
     ggplot.plot(r_script, df, [out_pdf])
-
-
-    # clean
-    os.close(gff_range_fd)
-    os.remove(gff_range_file)
 
 
 ################################################################################
@@ -175,34 +191,9 @@ def main():
 #  gff_file: GFF file of equal-sized genome features.
 #  bam_file: BAM file of reads alignments.
 ################################################################################
-def compute_coverage(gff_file, bam_file):
-    # filter BAM for mapping quality
-    bam_mapq_fd, bam_mapq_file = tempfile.mkstemp(dir='%s/research/scratch/temp' % os.environ['HOME'])
-    bam_in = pysam.Samfile(bam_file, 'rb')
-    bam_mapq_out = pysam.Samfile(bam_mapq_file, 'wb', template=bam_in)
-    for aligned_read in bam_in:
-        if aligned_read.mapq > 0:
-            bam_mapq_out.write(aligned_read)
-    bam_mapq_out.close()
-
-    # count fragments and hash multi-mappers
-    num_fragments = 0
-    multi_maps = {}
-    for aligned_read in pysam.Samfile(bam_mapq_file, 'rb'):
-        try:
-            nh_tag = aligned_read.opt('NH')
-        except:
-            nh_tag = 1.0
-
-        if aligned_read.is_paired:
-            num_fragments += 0.5/nh_tag
-        else:
-            num_fragments += 1.0/nh_tag
-
-        if nh_tag > 1:
-            multi_maps[aligned_read.qname] = nh_Tag
-
+def compute_coverage(gff_file, bam_files, gtf_key):
     # initialize counters
+    fragments = 0
     coverage = {}
     for line in open(gff_file):
         a = line.split('\t')
@@ -210,40 +201,74 @@ def compute_coverage(gff_file, bam_file):
         gchrom = a[0]
         gstart = int(a[3])
         gend = int(a[4])
-        
-        instance_id = (gchrom,gstart,gend)
+
+        if gtf_key == None:
+            instance_id = (gchrom,gstart,gend)
+        else:
+            instance_id = gff.gtf_kv(a[8])[gtf_key]
+
         coverage[instance_id] = [0]*(gend-gstart+1)
 
-    # count reads
-    p = subprocess.Popen('intersectBed -split -wo -bed -abam %s -b %s' % (bam_mapq_file, gff_file), shell=True, stdout=subprocess.PIPE)
-    for line in p.stdout:
-        a = line.split('\t')
-        
-        rstart = int(a[1])
-        rend = int(a[2])
-        rheader = a[3]
+    # process bam files
+    for bam_file in bam_files:
+        # filter BAM for mapping quality
+        bam_mapq_fd, bam_mapq_file = tempfile.mkstemp(dir='%s/research/scratch/temp' % os.environ['HOME'])
+        bam_in = pysam.Samfile(bam_file, 'rb')
+        bam_mapq_out = pysam.Samfile(bam_mapq_file, 'wb', template=bam_in)
+        for aligned_read in bam_in:
+            if aligned_read.mapq > 0:
+                bam_mapq_out.write(aligned_read)
+        bam_mapq_out.close()
 
-        # because intersectBed screws up indels near endpoints
-        if rstart < rend:
-            gchrom = a[12]
-            gstart = int(a[15])
-            gend = int(a[16])
+        # count fragments and hash multi-mappers
+        multi_maps = {}
+        for aligned_read in pysam.Samfile(bam_mapq_file, 'rb'):
+            try:
+                nh_tag = aligned_read.opt('NH')
+            except:
+                nh_tag = 1.0
 
-            instance_id = (gchrom,gstart,gend)
+            if aligned_read.is_paired:
+                fragments += 0.5/nh_tag
+            else:
+                fragments += 1.0/nh_tag
 
-            cov_start = max(rstart, gstart)
-            cov_end = min(rend, gend)
+            if nh_tag > 1:
+                multi_maps[aligned_read.qname] = nh_tag
 
-            for i in range(cov_start - gstart, cov_end - gstart + 1):
-                coverage[instance_id][i] += 1.0/multi_maps.get(rheader,1)
+        # count reads
+        p = subprocess.Popen('intersectBed -split -wo -bed -abam %s -b %s' % (bam_mapq_file, gff_file), shell=True, stdout=subprocess.PIPE)
+        for line in p.stdout:
+            a = line.split('\t')
 
-    p.communicate()
+            rstart = int(a[1])
+            rend = int(a[2])
+            rheader = a[3]
 
-    # clean
-    os.close(bam_mapq_fd)
-    os.remove(bam_mapq_file)
+            # because intersectBed screws up indels near endpoints
+            if rstart < rend:
+                gchrom = a[12]
+                gstart = int(a[15])
+                gend = int(a[16])
 
-    return coverage
+                if gtf_key == None:
+                    instance_id = (gchrom,gstart,gend)
+                else:
+                    instance_id = gff.gtf_kv(a[20])[gtf_key]
+
+                cov_start = max(rstart, gstart)
+                cov_end = min(rend, gend)
+
+                for i in range(cov_start - gstart, cov_end - gstart + 1):
+                    coverage[instance_id][i] += 1.0/multi_maps.get(rheader,1)
+
+        p.communicate()
+
+        # clean
+        os.close(bam_mapq_fd)
+        os.remove(bam_mapq_file)
+
+    return coverage, fragments
 
 
 ################################################################################
