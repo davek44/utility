@@ -15,11 +15,14 @@ import pysam
 def main():
     usage = 'usage: %prog [options] <input_bam> <output_bam>'
     parser = OptionParser(usage)
-    parser.add_option('-m', dest='mapq_t', type='int', default=0, help='Remove alignments with mapping quality at or lower than this value [Default: %default]')
+    parser.add_option('-m', dest='mapq_t', type='int', default=0, help='Keep only alignments with mapping quality above this value [Default: %default]')
     (options,args) = parser.parse_args()
 
     if len(args) != 2:
         parser.error('Must provide input and output BAMs')
+    else:
+        input_bam = args[0]
+        output_bam = args[1]
 
     bam_in = pysam.Samfile(input_bam, 'rb')
     bam_out = pysam.Samfile(output_bam, 'wb', template=bam_in)
