@@ -18,7 +18,7 @@ def main():
     parser = OptionParser(usage)
     parser.add_option('-g', dest='genes_gtf', help='Print only genes in the given GTF file')
     parser.add_option('-p', dest='pseudocount', type='float', default=0.125, help='FPKM pseudocount for taking logs [Default: %default]')
-    parser.add_option('-o', dest='out_dir_pre', default='genes', help='Prefix for output directories [Default: %default]')
+    parser.add_option('-o', dest='out_dir', default='scatters', help='Prefix for output directories [Default: %default]')
     (options,args) = parser.parse_args()
 
     if len(args) != 1:
@@ -80,7 +80,7 @@ def main():
         rho, pval = spearmanr(df_dict['fpkm1'], df_dict['fpkm2'])
         print '%-15s  %-15s  %.4f' % (cond1, cond2, rho)
 
-        output_pdf = '%s_scatter/%s_%s.pdf' % (options.out_dir_pre,cond1,cond2)
+        output_pdf = '%s/%s_%s.pdf' % (options.out_dir,cond1,cond2)
 
         ggplot.plot('%s/cuff_scatter.r' % os.environ['RDIR'], df_dict, [output_pdf,cond1,cond2])
 
