@@ -175,8 +175,17 @@ def introns(gtf_file, output_file=None):
 ################################################################################
 def kv_gtf(d):
     s = ''
+
+    if 'gene_id' in d.keys():
+        s += '%s "%s"; ' % ('gene_id',d['gene_id'])
+
+    if 'transcript_id' in d.keys():
+        s += '%s "%s"; ' % ('transcript_id',d['transcript_id'])
+
     for key in sorted(d.keys()):
-        s += '%s "%s"; ' % (key,d[key])
+        if key not in ['gene_id','transcript_id']:
+            s += '%s "%s"; ' % (key,d[key])
+
     return s
 
 
