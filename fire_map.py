@@ -16,7 +16,7 @@ import os, subprocess, tempfile
 def main():
     usage = 'usage: %prog [options] <possum_index> <fire_signif>'
     parser = OptionParser(usage)
-    #parser.add_option()
+    parser.add_option('-r', dest='robust', type='int', default=8, help='Minimum motif robustness score (out of 10) [Default: %default]')
     (options,args) = parser.parse_args()
 
     if len(args) != 2:
@@ -26,7 +26,7 @@ def main():
         fire_signif = args[1]
 
     # convert the regular expressions to uniform PWMs
-    motifs_pwm = read_motif_pwms(fire_signif)
+    motifs_pwm = read_motif_pwms(fire_signif, options.robust)
 
     # run possum
     possum_fd, possum_file = run_possum(motifs_pwm, possum_index)
@@ -44,11 +44,13 @@ def main():
 # Read in the motifs from FIRE output as regular expression motifs and convert
 # them to PWMs.
 ################################################################################
-def read_motif_pwms(fire_signif):
+def read_motif_pwms(fire_signif, min_robust):
     motifs_re = []
     for line in open(fire_signif):
         a = line.split()
-        motifs_re.append(a[0])
+        robust = int(a[4])
+        if robust >= min_robust:
+            motifs_re.append(a[0])
 
     motifs_pwm = {}
     for mre in motifs_re:
@@ -79,7 +81,7 @@ def read_motif_pwms(fire_signif):
 def run_possum(motifs_pwm, possum_index):
     ############################################
     # print pwm's for possum
-    pwm_fd, pwm_file = tempfile.mkstemp()
+    pwm_fd, pwm_file = tempfile.mkstemp(dir='%s/research/scratch/temp' % os.environ['HOME'])
     pwm_out = open(pwm_file, 'w')
 
     print >> pwm_out, 'BEGIN GROUP'
@@ -101,8 +103,8 @@ def run_possum(motifs_pwm, possum_index):
 
     ############################################
     # run possum
-    possum_fd, possum_file = tempfile.mkstemp()
-    subprocess.call('possumsearch -pr %s -db %s -freq %s_freqs.txt -lazy -esa -pval 1e-3 -fn -rc -format tabs -sort ip > %s' % (pwm_file,possum_index,possum_index,possum_file), shell=True)
+    possum_fd, possum_file = tempfile.mkstemp(dir='%s/research/scratch/temp' % os.environ['HOME'])
+    subprocess.call('possumsearch -pr %s -db %s -freq %s_freqs.txt -lazy -esa -pval 1e-3 -fn -rc -format tabs > %s' % (pwm_file,possum_index,possum_index,possum_file), shell=True)
 
     # clean
     os.close(pwm_fd)
@@ -122,10 +124,20 @@ def possum2gff(possum_file):
         a[-1] = a[-1].rstrip()
 
         motif_re = a[0]
-        start = int(a[5])-1
+        try:
+            start = int(a[5])-1
+        except:
+            print 'ERROR: cant extract start'
+            print a
+            exit(1)
         end = start+int(a[6])-1
         fnrc = a[7]
-        seq_id = a[16][:a[16].find('.')]
+        try:
+            seq_id = a[16][:a[16].find('.')]
+        except:
+            print 'ERROR: cant extract seq_id'
+            print a
+            exit(1)
 
         if fnrc == 'fn':
             strand = '+'
