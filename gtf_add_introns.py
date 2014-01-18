@@ -17,7 +17,7 @@ import copy, os, subprocess, tempfile
 def main():
     usage = 'usage: %prog [options] <ref_gtf>'
     parser = OptionParser(usage)
-    #parser.add_option()
+    parser.add_option('-e', dest='exons_adjacent', default=False, action='store_true', help='Include adjacent exons with every intron isoform [Default: %default]')
     (options,args) = parser.parse_args()
 
     if len(args) != 1:
@@ -40,8 +40,12 @@ def main():
             if transcript_id in transcripts:
                 tx = transcripts[transcript_id]
                 for i in range(len(tx.exons)-1):
-                    istart = tx.exons[i].start
-                    iend = tx.exons[i+1].end
+                    if options.exons_adjacent:
+                        istart = tx.exons[i].start
+                        iend = tx.exons[i+1].end
+                    else:
+                        istart = tx.exons[i].end+1
+                        iend = tx.exons[i+1].start-1
                     raw_introns.add((istart,iend))
 
         introns = filter_introns(raw_introns)
@@ -58,6 +62,7 @@ def main():
         for istart, iend in introns:
             pre_kv = copy.copy(tx.kv)
             pre_kv['transcript_id'] = 'INTRON%d' % intron_index
+            pre_kv['transcript_type'] = 'intron'
             intron_index += 1
             cols = (tx.chrom, 'gencode', 'exon', str(istart), str(iend), '.', tx.strand, '.', kv_gtf(pre_kv))
             print '\t'.join(cols)

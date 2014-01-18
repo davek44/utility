@@ -50,7 +50,7 @@ def main():
 
     # print fasta
     for tid in transcript_seqs:
-        print >> fa_out, '>%s gene=%s\n%s' % (tid,transcript_genes[tid],transcript_seqs[tid])
+        print '>%s gene=%s\n%s' % (tid,transcript_genes[tid],transcript_seqs[tid])
 
 
 ################################################################################
