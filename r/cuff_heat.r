@@ -17,14 +17,12 @@ sample.dist = dist(t(fpkm.matrix))
 sample.clust = hclust(sample.dist)
 sample.order = colnames(fpkm.matrix)[sample.clust$order]
 
-gene_breaks = (1:nrow(fpkm.matrix))-0.5
-
 ggplot(df, aes(x=Sample, y=Gene, fill=FPKM)) +
     geom_tile() +
     scale_x_discrete("", limits=sample.order) + 
-    scale_y_discrete(breaks=gene_breaks, limits=gene.order, labels=rep("",nrow(fpkm.matrix))) +
+    scale_y_discrete(limits=gene.order) +
     scale_fill_gradient("FPKM", low="white", high="tomato3") +
     theme_bw() +
-    theme(axis.text.x=element_text(angle=315, hjust=0, vjust=1))
+    theme(axis.text.x=element_text(angle=315, hjust=0, vjust=1), axis.ticks.y=element_blank(), axis.text.y=element_blank())
 
 ggsave(output.pdf)
