@@ -21,6 +21,27 @@ def main():
     
 
 ################################################################################
+# map_dfam_family
+#
+# Return a dict mapping DFAM repeats to RepeatMasker families.
+################################################################################
+def map_dfam_family():
+    repeat_family = {}
+    for line in open('%s/hg19.fa.out.tp.gff' % os.environ['MASK']):
+        a = line.split('\t')
+        kv = gff.gtf_kv(a[8])
+        repeat_family[kv['repeat']] = kv['family']
+
+    dfam_family = {}
+    for repeat in repeat_family:
+        dfam_tes = map_rm_dfam(repeat, quiet=True)
+        for dfam_te in dfam_tes:
+            dfam_family[dfam_te] = repeat_family[repeat]
+
+    return dfam_family
+
+
+################################################################################
 # map_dfam_repeat
 #
 # Return a dict mapping DFAM repeats to RepeatMasker repeats.
