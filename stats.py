@@ -27,9 +27,10 @@ def geo_mean(ls, log_sum=True, pseudocount=0):
     if log_sum:
         return math.exp(sum([math.log(x+pseudocount) for x in ls])/float(len(ls)))
     else:
-        prod = ls[0]
-        for x in ls:
-            prod *= x
+        # untested
+        prod = (ls[0]+pseudocount)
+        for x in ls[1:]:
+            prod *= (x+pseudocount)
         return math.pow(prod,1.0/len(ls))
 
 
@@ -163,14 +164,17 @@ def min_i(lis):
 #
 # Return the median of a list
 ############################################################
-def median(ls):
-    sls = sorted(ls)
-    if len(sls) % 2 == 1:
-        return sls[(len(sls)+1)/2-1]
+def median(ls, null=None):
+    if len(ls) == 0:
+        return null
     else:
-        lower = sls[len(sls)/2-1]
-        upper = sls[len(sls)/2]
-        return float(lower+upper)/2.0
+        sls = sorted(ls)
+        if len(sls) % 2 == 1:
+            return sls[(len(sls)+1)/2-1]
+        else:
+            lower = sls[len(sls)/2-1]
+            upper = sls[len(sls)/2]
+            return float(lower+upper)/2.0
 
 
 ############################################################
@@ -178,9 +182,9 @@ def median(ls):
 #
 # Return mean of a list
 ############################################################
-def mean(ls):
+def mean(ls, null=None):
     if len(ls) == 0:
-        return 0
+        return null
     else:
         return float(sum(ls)) / float(len(ls))
 
@@ -284,10 +288,10 @@ def quantile(ls, q):
     if type(q) == list:
         qval = []
         for j in range(len(q)):
-            qi = int(len(sls)*q[j] + 0.5)
+            qi = int(len(sls)*q[j])
             qval.append(sls[qi])
     else:
-        qi = int(len(sls)*q + 0.5)
+        qi = int(len(sls)*q)
         qval = sls[qi]
 
     return qval
@@ -307,12 +311,22 @@ def sd(ls):
 #
 # Sample from a list of items according to given probabilities
 ################################################################################
-def sample_probs(items, probs, count=1):
+def sample_probs(items, props, count=1):
+    props_sum = float(sum(props))
+    if props_sum <= 0:
+        print >> sys.stderr, 'Proportions sum to zero'
+        print >> sys.stderr, props
+        exit(1)
+
+    if len(items) != len(props):
+        print >> sys.stderr, 'Items (%d) and proportions (%d) differ in length' % (len(items), len(proportions))
+        exit(1)
+
     # compute cumulative probabilities
-    cum_probs = [0]*len(probs)
-    cum_probs[0] = probs[0]
-    for p in range(1,len(probs)):
-        cum_probs[p] = cum_probs[p-1] + probs[p]
+    cum_probs = [0]*len(props)
+    cum_probs[0] = props[0] / props_sum
+    for p in range(1,len(props)):
+        cum_probs[p] = cum_probs[p-1] + props[p]/props_sum
 
     # sample
     samples = ['']*count
