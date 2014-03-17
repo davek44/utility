@@ -190,6 +190,7 @@ def main():
 # Input:
 #  gff_file: GFF file of equal-sized genome features.
 #  bam_file: BAM file of reads alignments.
+#  gtf_key:  GTF key by which is hash coverage arrays.
 ################################################################################
 def compute_coverage(gff_file, bam_files, gtf_key):
     # initialize counters
