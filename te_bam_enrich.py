@@ -40,7 +40,7 @@ def main():
     (options,args) = parser.parse_args()
 
     if len(args) != 1:
-        parser.error('Must provide a BAM file.')
+        parser.error('Must provide BAM files.')
     else:
         bam_files = args[0].split(',')
 
