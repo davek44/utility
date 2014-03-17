@@ -42,7 +42,7 @@ def main():
     p = subprocess.Popen('sortBed -i %s | mergeBed -i -' % gff_file, shell=True, stdout=subprocess.PIPE)
     for line in p.stdout:
         a = line.split('\t')
-        chr_features.setdefault(a[0], IntervalTree()).insert_interval( Interval(int(a[1]),int(a[2])) )
+        chr_features.setdefault(a[0], IntervalTree()).insert_interval( Interval(int(a[1])+1,int(a[2])) )
     p.communicate()
     print >> sys.stderr, 'Done'
 
