@@ -55,7 +55,7 @@ def main():
             if transcript_id in transcripts:
                 tx = transcripts[transcript_id]
                 for i in range(len(tx.exons)):
-                    cols = (tx.chrom, 'gencode', 'exon', str(tx.exons[i].start), str(tx.exons[i].end), '.', tx.strand, '.', kv_gtf(tx.kv))
+                    cols = (tx.chrom, 'dk', 'exon', str(tx.exons[i].start), str(tx.exons[i].end), '.', tx.strand, '.', kv_gtf(tx.kv))
                     print '\t'.join(cols)
 
         # print intron isoforms
@@ -64,7 +64,7 @@ def main():
             pre_kv['transcript_id'] = 'INTRON%d' % intron_index
             pre_kv['transcript_type'] = 'intron'
             intron_index += 1
-            cols = (tx.chrom, 'gencode', 'exon', str(istart), str(iend), '.', tx.strand, '.', kv_gtf(pre_kv))
+            cols = (tx.chrom, 'dk', 'exon', str(istart), str(iend), '.', tx.strand, '.', kv_gtf(pre_kv))
             print '\t'.join(cols)
 
 
