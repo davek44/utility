@@ -38,7 +38,7 @@ class fpkm_tracking:
     #
     # Load the expression matrix 
     ############################################################################
-    def __init__(self, fpkm_file='/Users/dk/research/common/data/lncrna/genes.fpkm_tracking', rand_zero=False):
+    def __init__(self, fpkm_file):
         # obtain basic information
         fpkm_in = open(fpkm_file)
         headers = fpkm_in.readline().split()
@@ -66,12 +66,10 @@ class fpkm_tracking:
             e = 0
             for i in range(len(headers)):
                 if headers[i][-5:] == '_FPKM':
-                    if a[i+3] == 'FAIL':
+                    if a[i+3] in ['FAIL','HIDATA']:
                         self.expr[g,e] = float('nan')
                     else:
                         self.expr[g,e] = float(a[i])
-                    if rand_zero and self.expr[g,e] == 0:
-                        self.expr[g,e] = abs(norm.rvs(scale=1e-6))
                     e += 1
             g += 1
             line = fpkm_in.readline()
