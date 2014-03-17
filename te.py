@@ -99,6 +99,20 @@ def map_rm_dfam(repeat, quiet=False):
 
 
 ################################################################################
+# hash_repeat_family
+#
+# Hash repeat -> family from the RepeatMasker GFF.
+################################################################################
+def hash_repeat_family():
+    repeat_family = {}
+    for line in open('%s/hg19.fa.out.tp.gff' % os.environ['MASK']):
+        a = line.split('\t')
+        kv = gff.gtf_kv(a[8])
+        repeat_family[kv['repeat']] = kv['family']
+    return repeat_family
+
+
+################################################################################
 # __main__
 ################################################################################
 if __name__ == '__main__':
