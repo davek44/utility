@@ -104,10 +104,11 @@ def g2t(gtf_file):
     while line[:2] == '##':
         line = gtf_in.readline()
 
-    for line in gtf_in:
+    while line:
         a = line.split('\t')
         kv = gtf_kv(a[8])
         d.setdefault(kv['gene_id'],set()).add(kv['transcript_id'])
+        line = gtf_in.readline()
 
     return d
 
@@ -129,13 +130,13 @@ def gtf_kv(s):
             else:
                 kvs = key_val.split()
 
-            if len(kvs) == 2:
-                key = kvs[0]
-                if kvs[1][0] == '"' and kvs[1][-1] == '"':
-                    val = kvs[1].strip()[1:-1]
-                else:
-                    val = kvs[1].strip()
-                d[key] = val
+            key = kvs[0]
+            if kvs[1][0] == '"' and kvs[-1][-1] == '"':
+                val = (' '.join(kvs[1:]))[1:-1].strip()
+            else:
+                val = (' '.join(kvs[1:])).strip()
+
+            d[key] = val
 
     return d
 
