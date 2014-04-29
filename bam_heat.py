@@ -55,9 +55,10 @@ def main():
         mid = start + (end-start)/2
         a[3] = str(mid - options.range/2)
         a[4] = str(mid + options.range/2)
+        a[-1] = a[-1].rstrip()
 
         if random.random() < sample_prob:
-            print >> gff_range_out, '\t'.join(a),
+            print >> gff_range_out, '\t'.join(a)
 
     gff_range_out.close()
 
@@ -80,7 +81,7 @@ def main():
         for i in range(len(coverage[feature_id])):
             coverage[feature_id][i] = (1+coverage[feature_id][i])/fragments
             if options.control_bam_files:
-                coverage_control[feature_id][i] = (1+coverage_control[feature_id][i])/fragments_control
+                coverage_control[feature_id][i] = (1+coverage_control[feature_id][i])/fragments_control    
 
     ############################################
     # sorted genes
@@ -131,15 +132,15 @@ def main():
                 df['Feature'].append(f)
 
                 if options.log:
-                    cov = math.log(coverage[feature_id][-options.range/2+i],2)
+                    cov = math.log(coverage[feature_id][i+options.range/2],2)
                 else:
-                    cov = coverage[feature_id][-options.range/2+i]
+                    cov = coverage[feature_id][i+options.range/2]
 
                 if options.control_bam_files:
                     if options.log:
-                        cov -= math.log(coverage_control[feature_id][-options.range/2+i],2)
+                        cov -= math.log(coverage_control[feature_id][i+options.range/2],2)
                     else:
-                        cov = cov / coverage_control[feature_id][-options.range/2+i]
+                        cov = cov / coverage_control[feature_id][i+options.range/2]
 
                 df['Coverage'].append('%.4e' % cov)
 
@@ -151,7 +152,7 @@ def main():
             sorted_gene_pre = os.path.splitext(os.path.split(sorted_gene_file)[-1])[0]
             out_pdf = '%s_heat/%s.pdf' % (options.output_pre,sorted_gene_pre)
 
-        ggplot.plot(r_script, df, [out_pdf])
+        ggplot.plot(r_script, df, [out_pdf, options.control_bam_files!=None], df_file='df_heat.txt')
 
     ############################################
     # plot meta-coverage
@@ -164,9 +165,9 @@ def main():
         df['Index'].append(i)
 
         if options.log:
-            df['Coverage'].append(stats.geo_mean([coverage[feature_id][-options.range/2+i] for feature_id in coverage]))
+            df['Coverage'].append(stats.geo_mean([coverage[feature_id][i+options.range/2] for feature_id in coverage]))
         else:
-            df['Coverage'].append(stats.mean([coverage[feature_id][-options.range/2+i] for feature_id in coverage]))
+            df['Coverage'].append(stats.mean([coverage[feature_id][i+options.range/2] for feature_id in coverage]))
 
         if options.control_bam_files:
             df['Type'].append('Primary')
@@ -174,14 +175,14 @@ def main():
             df['Index'].append(i)
             df['Type'].append('Control')
             if options.log:
-                df['Coverage'].append(stats.geo_mean([coverage_control[feature_id][-options.range/2+i] for feature_id in coverage_control]))
+                df['Coverage'].append(stats.geo_mean([coverage_control[feature_id][i+options.range/2] for feature_id in coverage_control]))
             else:
-                df['Coverage'].append(stats.mean([coverage_control[feature_id][-options.range/2+i] for feature_id in coverage_control]))
+                df['Coverage'].append(stats.mean([coverage_control[feature_id][i+options.range/2] for feature_id in coverage_control]))
 
     r_script = '%s/bam_heat_meta.r' % os.environ['RDIR']
     out_pdf = '%s_meta.pdf' % options.output_pre
 
-    ggplot.plot(r_script, df, [out_pdf])
+    ggplot.plot(r_script, df, [out_pdf], df_file='df_meta.txt')
 
 
 ################################################################################
@@ -223,6 +224,7 @@ def compute_coverage(gff_file, bam_files, gtf_key):
 
         # count fragments and hash multi-mappers
         multi_maps = {}
+        paired_reads = False
         for aligned_read in pysam.Samfile(bam_mapq_file, 'rb'):
             try:
                 nh_tag = aligned_read.opt('NH')
@@ -230,6 +232,7 @@ def compute_coverage(gff_file, bam_files, gtf_key):
                 nh_tag = 1.0
 
             if aligned_read.is_paired:
+                paired_reads = True
                 fragments += 0.5/nh_tag
             else:
                 fragments += 1.0/nh_tag
@@ -242,7 +245,7 @@ def compute_coverage(gff_file, bam_files, gtf_key):
         for line in p.stdout:
             a = line.split('\t')
 
-            rstart = int(a[1])
+            rstart = int(a[1])+1  # convert back to 1-based
             rend = int(a[2])
             rheader = a[3]
 
@@ -251,6 +254,7 @@ def compute_coverage(gff_file, bam_files, gtf_key):
                 gchrom = a[12]
                 gstart = int(a[15])
                 gend = int(a[16])
+                gstrand = a[18]
 
                 if gtf_key == None:
                     instance_id = (gchrom,gstart,gend)
@@ -260,8 +264,25 @@ def compute_coverage(gff_file, bam_files, gtf_key):
                 cov_start = max(rstart, gstart)
                 cov_end = min(rend, gend)
 
-                for i in range(cov_start - gstart, cov_end - gstart + 1):
-                    coverage[instance_id][i] += 1.0/multi_maps.get(rheader,1)
+                if gstrand == '+':
+                    inc_start = cov_start - gstart
+                    inc_end = cov_end - gstart + 1
+                else:
+                    inc_start = gend - cov_end
+                    inc_end = gend - cov_start + 1
+
+                # find multi-map number, which may require removing a suffix
+                if rheader in multi_maps:
+                    mm = multi_maps[rheader]
+                else:
+                    rheader_base = rheader[:rheader.rfind('/')]
+                    if rheader_base in multi_maps:
+                        mm = multi_maps[rheader_base]
+                    else:
+                        mm = 1.0
+
+                for i in range(inc_start, inc_end):
+                    coverage[instance_id][i] += 1.0/mm
 
         p.communicate()
 

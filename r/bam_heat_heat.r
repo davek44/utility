@@ -3,12 +3,22 @@ library(ggplot2)
 ca = commandArgs(trailing=T)
 df.file = ca[1]
 output.pdf = ca[2]
+control = ca[3]
 
 df = read.table(df.file, header=T, quote="\"")
 
-ggplot(df, aes(x=Index, y=Feature, fill=Coverage)) +
- geom_tile() +
- scale_fill_gradient(low="white", high="darkred") +
- theme_bw()
+gp = ggplot(df, aes(x=Index, y=Feature, fill=Coverage)) +
+    geom_tile()
+
+if(control == "True") {
+    gp = gp + scale_fill_gradient2(low="#377eb8", high="#e41a1c")
+} else {
+    gp = gp + scale_fill_gradient(low="white", high="#e41a1c")
+}
+
+gp +
+    scale_y_discrete("", labels=rep("",length(df$Feature))) +
+    theme_bw() +
+    theme(text=element_text(size=16))
 
 ggsave(output.pdf)

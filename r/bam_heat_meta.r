@@ -9,12 +9,14 @@ df = read.table(df.file, header=T, quote="\"")
 if (ncol(df) == 2) {
     gp = ggplot(df, aes(x=Index, y=Coverage))
 } else {
-    gp = ggplot(df, aes(x=Index, y=Coverage, colour=Type))
+    gp = ggplot(df, aes(x=Index, y=Coverage, color=Type)) +
+        scale_color_brewer(palette="Set1")
 }
 
 gp +
     geom_point() +
     geom_smooth() +
-    theme_bw()
+    theme_bw() +
+    theme(text=element_text(size=16))
 
 ggsave(output.pdf)
