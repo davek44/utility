@@ -239,7 +239,7 @@ def promoters(gtf_file, promoter_up=2000, promoter_down=0, output_file=None, gue
 # Given a gtf file, make a new gtf file with a single entry per gene covering
 # the entire span of the gene.
 ################################################################################
-def span_gene(gtf_file, output_file=None):
+def span_gene(gtf_file, extend=0, output_file=None):
     if not output_file:
         gtf_base = os.path.splitext(gtf_file)[0]
         output_file = '%s_span.gtf' % gtf_base
@@ -263,7 +263,11 @@ def span_gene(gtf_file, output_file=None):
     out = open(output_file, 'w')
     for gid in gene_regions:
         g = gene_regions[gid]
-        cols = [g[0], source, 'span', str(g[1]), str(g[2]), '.', g[3], '.', kv_gtf({'gene_id':gid})]
+
+        start = g[1] - extend
+        end = g[2] + extend
+
+        cols = [g[0], source, 'span', str(start), str(end), '.', g[3], '.', kv_gtf({'gene_id':gid})]
         print >> out, '\t'.join(cols)
     out.close()
 
