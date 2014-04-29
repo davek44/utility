@@ -19,8 +19,9 @@ def main():
     parser = OptionParser(usage)
     parser.add_option('-f', dest='fpkm_tracking', default=False, action='store_true', help='Providing an fpkm_tracking file rather than a diff file [Default: %default]')
     parser.add_option('-g', dest='genes_gtf', help='Print only genes in the given GTF file')
-    parser.add_option('-p', dest='pseudocount', type='float', default=0.125, help='FPKM pseudocount for taking logs [Default: %default]')
     parser.add_option('-o', dest='out_dir', default='scatters', help='Prefix for output directories [Default: %default]')
+    parser.add_option('-p', dest='pseudocount', type='float', default=0.125, help='FPKM pseudocount for taking logs [Default: %default]')
+    parser.add_option('-r', dest='read_group_tracking', default=False, action='store_true', help='Providing a reads_group_tracking file rather than a diff file [Default: %default]')
     (options,args) = parser.parse_args()
 
     if len(args) != 1:
@@ -36,23 +37,43 @@ def main():
             gid = gff.gtf_kv(a[8])['gene_id']
             gene_set.add(gid)
 
+    conditions_gene_qval = {}
     if options.fpkm_tracking:
-        gene_fpkm1, gene_fpkm2, gene_qvals = read_fpkm_tracking(diff_file, gene_set)
+        condition_gene_fpkm = read_fpkm_tracking(diff_file, gene_set)
+    elif options.read_group_tracking:
+        condition_gene_fpkm = read_read_group_tracking(diff_file, gene_set)
     else:
-        gene_fpkm1, gene_fpkm2, gene_qvals = read_diff(diff_file, gene_set)
+        condition_gene_fpkm, conditions_gene_qval = read_diff(diff_file, gene_set)
+
+    # fill in dummy q-value conditions
+    if len(conditions_gene_qval) == 0:
+        conditions = condition_gene_fpkm.keys()
+        for i in range(len(conditions)):
+            for j in range(i+1,len(conditions)):
+                if options.read_group_tracking:
+                    cond1_pre = conditions[i][:conditions[i].rfind('rep')]
+                    cond2_pre = conditions[j][:conditions[j].rfind('rep')]
+                    if cond1_pre == cond2_pre:
+                        conditions_gene_qval[(conditions[i],conditions[j])] = {}
+                else:
+                    conditions_gene_qval[(conditions[i],conditions[j])] = {}
 
     # clean plot directory
     if os.path.isdir(options.out_dir):
         shutil.rmtree(options.out_dir)
     os.mkdir(options.out_dir)
 
-    for cond_key in gene_qvals:
+    for cond_key in conditions_gene_qval:
         cond1, cond2 = cond_key
 
-        df_dict = {}
-        df_dict['fpkm1'] = [math.log(fpkm+options.pseudocount,2) for fpkm in gene_fpkm1[cond_key]]
-        df_dict['fpkm2'] = [math.log(fpkm+options.pseudocount,2) for fpkm in gene_fpkm2[cond_key]]
-        df_dict['qval'] = [math.log(qval+1e-15,10) for qval in gene_qvals[cond_key]]
+        if len(conditions_gene_qval[cond_key]) > 0:
+            plot_genes = conditions_gene_qval[cond_key].keys()
+        else:
+            plot_genes = set(condition_gene_fpkm[cond1].keys()) & set(condition_gene_fpkm[cond2].keys())
+
+        df_dict = {'fpkm1': [math.log(condition_gene_fpkm[cond1][gene_id]+options.pseudocount,2) for gene_id in plot_genes],
+                   'fpkm2': [math.log(condition_gene_fpkm[cond2][gene_id]+options.pseudocount,2) for gene_id in plot_genes],
+                   'qval': [math.log(conditions_gene_qval[cond_key].get(gene_id,1-1e-15)+1e-15,10) for gene_id in plot_genes]}        
 
         #rho, pval = spearmanr(df_dict['fpkm1'], df_dict['fpkm2'])
         rho, pval = pearsonr(df_dict['fpkm1'], df_dict['fpkm2'])
@@ -60,7 +81,7 @@ def main():
 
         output_pdf = '%s/%s_%s.pdf' % (options.out_dir,cond1,cond2)
 
-        ggplot.plot('%s/cuff_scatter.r' % os.environ['RDIR'], df_dict, [output_pdf,cond1,cond2])
+        ggplot.plot('%s/cuff_scatter.r' % os.environ['RDIR'], df_dict, [output_pdf,cond1,cond2], df_file='df.txt')
 
 
 ################################################################################
@@ -68,9 +89,8 @@ def main():
 ################################################################################
 def read_diff(diff_file, gene_set):
     # initialize diff data structures
-    gene_fpkm1 = {}
-    gene_fpkm2 = {}
-    gene_qvals = {}
+    condition_gene_fpkm = {}
+    conditions_gene_qval = {}
 
     # read diff file
     diff_in = open(diff_file)
@@ -89,49 +109,68 @@ def read_diff(diff_file, gene_set):
         test_stat = float(a[10])
         qval = float(a[11])
 
+        if cond2 in ['input','control']:
+            cond1, cond2 = cond2, cond1
+            fpkm1, fpkm2 = fpkm2, fpkm1
+            fold_change *= -1
+            test_stat *= -1
+            
         if status == 'OK' and not math.isnan(test_stat) and (len(gene_set) == 0 or gene_id in gene_set):
-            gene_qvals.setdefault((cond1,cond2),[]).append(qval)
-            gene_fpkm1.setdefault((cond1,cond2),[]).append(fpkm1)
-            gene_fpkm2.setdefault((cond1,cond2),[]).append(fpkm2)
+            conditions_gene_qval.setdefault((cond1,cond2),{})[gene_id] = qval
+            condition_gene_fpkm.setdefault(cond1,{})[gene_id] = fpkm1
+            condition_gene_fpkm.setdefault(cond2,{})[gene_id] = fpkm2
 
         line = diff_in.readline()
     diff_in.close()
 
-    return gene_fpkm1, gene_fpkm2, gene_qvals
+    return condition_gene_fpkm, conditions_gene_qval
 
 
 ################################################################################
 # read_fpkm_tracking
 ################################################################################
 def read_fpkm_tracking(ft_file, gene_set):
-    # initialize diff data structures
-    gene_fpkm1 = {}
-    gene_fpkm2 = {}
-    gene_qvals = {}
+    condition_gene_fpkm = {}
 
     # get fpkm's
     cuff = cufflinks.fpkm_tracking(ft_file)
 
     # for each gene
     for gene_i in range(len(cuff.genes)):
-        gene_expr = cuff.gene_expr(gene_i)
+        gene_id = cuff.genes[gene_i]
+        if len(gene_set) == 0 or gene_id in gene_set:
+            gene_expr = cuff.gene_expr(gene_i)
 
-        # for each pair of conditions
-        for i in range(len(cuff.experiments)):
-            cond1 = cuff.experiments[i]
-            fpkm1 = gene_expr[i]
-            for j in range(i+1, len(cuff.experiments)):
-                cond2 = cuff.experiments[j]
-                fpkm2 = gene_expr[j]
-
+            # for each condition
+            for i in range(len(cuff.experiments)):
                 # save, as long as not nan
-                if not math.isnan(fpkm1) and not math.isnan(fpkm2):
-                    gene_qvals.setdefault((cond1,cond2),[]).append(1)
-                    gene_fpkm1.setdefault((cond1,cond2),[]).append(fpkm1)
-                    gene_fpkm2.setdefault((cond1,cond2),[]).append(fpkm2)
+                if not math.isnan(gene_expr[i]):
+                    cond = cuff.experiments[i]
+                    condition_gene_fpkm.setdefault(cond,{})[gene_id] = gene_expr[i]
 
-    return gene_fpkm1, gene_fpkm2, gene_qvals
+    return condition_gene_fpkm
 
+
+################################################################################
+# read_read_group_tracking
+################################################################################
+def read_read_group_tracking(rgt_file, gene_set):
+    condition_gene_fpkm = {}
+
+    rgt_in = open(rgt_file)
+    line = rgt_in.readline()
+    for line in rgt_in:
+        a = line.split('\t')
+        gene_id = a[0]
+        condition = a[1]
+        rep = int(a[2])
+        fpkm = float(a[6])
+
+        if len(gene_set) == 0 or gene_id in gene_set:
+            cond_key = '%s-rep%d' % (condition,rep)
+            condition_gene_fpkm.setdefault(cond_key,{})[gene_id] = fpkm            
+
+    return condition_gene_fpkm
 
 ################################################################################
 # __main__
