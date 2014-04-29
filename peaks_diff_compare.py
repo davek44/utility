@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from optparse import OptionParser
 import os, subprocess
-import ggplot, gff, stats
+import ggplot, gff, math, stats
 
 ################################################################################
 # peaks_diff_compare.py
@@ -58,6 +58,9 @@ def main():
         fpkm2 = float(a[8])
         tstat = float(a[10])
 
+        if sample2 == 'input':
+            tstat *= -1
+
         if status == 'OK' and not math.isnan(tstat):
             if options.sample1 in [None,sample1] and options.sample2 in [None,sample2]:
                 if gene_id in peak_genes:
@@ -80,10 +83,8 @@ def main():
 
     r_script = '%s/peaks_diff_compare.r' % os.environ['RDIR']
 
-    output_pdf = '%s_dens.pdf' % options.output_pre
+    ggplot.plot(r_script, df_dict, [options.output_pre])
 
-    ggplot.plot(r_script, df_dict, [output_pdf])
-    
 
 ################################################################################
 # find_silent
