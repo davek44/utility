@@ -17,7 +17,7 @@ import cufflinks, gff
 def main():
     usage = 'usage: %prog [options] <gtf> <fpkm tracking>'
     parser = OptionParser(usage)
-    parser.add_option('-p', dest='pseudocount', default=0.1)
+    parser.add_option('-p', dest='pseudocount', default=0.125)
     (options,args) = parser.parse_args()
 
     if len(args) != 2:
