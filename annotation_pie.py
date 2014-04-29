@@ -14,7 +14,7 @@ import ggplot
 # main
 ################################################################################
 def main():
-    usage = 'usage: %prog [options] <hg19|mm9> <bam>'
+    usage = 'usage: %prog [options] <hg19|mm9> <bam1,bam2,...>'
     parser = OptionParser(usage)
     parser.add_option('-a', dest='annotations', default='rrna,smallrna,cds,utrs_3p,utrs_5p,pseudogene,lncrna,introns,intergenic', help='Comma-separated list of annotation classes to include [Default: %default]')
     parser.add_option('-o', dest='output_prefix', default='annotation', help='Output file prefix [Default: %default]')
@@ -25,7 +25,7 @@ def main():
 
     if len(args) == 2:
         genome = args[0]
-        bam_file = args[1]
+        bam_files = args[1].split(',')
     else:
         parser.error(usage)
 
@@ -39,8 +39,9 @@ def main():
         parser.error('Genome must specify hg19 or mm9.')
 
     if options.paired_stranded:
-        # split bam file by strand
-        split_bam_xs(bam_file)
+        # split bam files by strand
+        for bam_file in bam_files:
+            split_bam_xs(bam_file)
 
     annotation_classes = set(options.annotations.split(','))
 
@@ -65,13 +66,17 @@ def main():
     ############################################
     # annotation read counts
     ############################################
-    genome_reads = count_bam(bam_file)
+    genome_reads = 0
+    for bam_file in bam_files:
+        genome_reads += count_bam(bam_file)
 
     annotation_reads = {}
     for ann in annotation_classes:
         if ann != 'intergenic':
             annotation_bed = '%s/%s.bed' % (annotation_dir,ann)
-            annotation_reads[ann] = count_intersection(bam_file, annotation_bed, options.unstranded, options.paired_stranded)
+            annotation_reads[ann] = 0
+            for bam_file in bam_files:
+                annotation_reads[ann] += count_intersection(bam_file, annotation_bed, options.unstranded, options.paired_stranded)
 
     if 'intergenic' in annotation_classes:
         other_annotations_summed = sum(annotation_reads.values())
@@ -79,16 +84,19 @@ def main():
     
         if options.unstranded:
             intergenic_reads_sub = annotation_reads['intergenic']
-            intergenic_reads = count_sans_intersection(bam_file, '%s/../gencode.v18.annotation.prerna.gtf' % annotation_dir)
+            intergenic_reads = 0
+            for bam_file in bam_files:
+                intergenic_reads += count_sans_intersection(bam_file, '%s/../gencode.v18.annotation.prerna.gtf' % annotation_dir)
 
     if options.paired_stranded:
-        os.remove(bam_file[:-4] + '_p.bam')
-        os.remove(bam_file[:-4] + '_m.bam')
+        for bam_file in bam_files:
+            os.remove(bam_file[:-4] + '_p.bam')
+            os.remove(bam_file[:-4] + '_m.bam')
 
     ############################################
     # table
     ############################################
-    annotation_labels = {'rrna':'rRNA', 'smallrna':'smallRNA', 'cds':'CDS', 'utrs_3p':'3\'UTR', 'utrs_5p':'5\'UTR', 'pseudogene':'Pseudogene', 'lncrna':'lncRNA', 'introns':'Introns', 'intergenic':'Intergenic'}
+    annotation_labels = {'rrna':'rRNA', 'smallrna':'smallRNA', 'cds':'CDS', 'utrs_3p':'3\'UTR', 'utrs_5p':'5\'UTR', 'pseudogene':'Pseudogene', 'lncrna':'lncRNA', 'introns':'Introns', 'intergenic':'Intergenic', 'mrna':'mRNA'}
 
     reads_sum = float(sum(annotation_reads.values()))
     lengths_sum = float(sum(annotation_lengths.values()))
