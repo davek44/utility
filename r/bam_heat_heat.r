@@ -17,8 +17,9 @@ if(control == "True") {
 }
 
 gp +
-    scale_y_discrete("", labels=rep("",length(df$Feature))) +
+    scale_y_discrete("") +
     theme_bw() +
-    theme(text=element_text(size=16))
+    theme(text=element_text(size=16)) +
+    theme(axis.ticks.y=element_blank(), axis.text.y=element_blank())
 
 ggsave(output.pdf)
