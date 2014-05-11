@@ -17,6 +17,7 @@ gp +
     geom_point() +
     geom_smooth() +
     theme_bw() +
-    theme(text=element_text(size=16))
+    theme(text=element_text(size=16)) +
+    theme(legend.justification=c(1,0), legend.position=c(1,0))
 
 ggsave(output.pdf)
