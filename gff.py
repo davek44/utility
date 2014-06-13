@@ -114,6 +114,20 @@ def g2t(gtf_file):
 
 
 ################################################################################
+# gtf_gene_set
+#
+# Return a set comprising the genes in the GTF file.
+################################################################################
+def gtf_gene_set(gtf_file, gtf_key='gene_id'):
+    gene_set = set()
+    for line in open(gtf_file):
+        a = line.split('\t')
+        gene_id = gtf_kv(a[8])[gtf_key]
+        gene_set.add(gene_id)
+    return gene_set
+
+
+################################################################################
 # gtf_kv
 #
 # Convert the last gtf section of key/value pairs into a dict.
