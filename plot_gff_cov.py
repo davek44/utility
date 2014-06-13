@@ -29,6 +29,7 @@ def main():
     parser = OptionParser(usage)
     parser.add_option('-a', dest='max_anchors', default=1000, type='int', help='Maximum number of anchors to consider [Default: %default]')
     parser.add_option('-c', dest='control_files', default=None, help='Control BAM or GFF files (comma separated)')
+    parser.add_option('-e', dest='plot_heat', default=False, help='Plot as a heatmap [Default: %default]')
     parser.add_option('-l', dest='log', default=False, action='store_true', help='log2 coverage [Default: %default]')
     parser.add_option('-o', dest='output_pre', default='gff_cov', help='Output prefix [Default: %default]')
     parser.add_option('-s', dest='sorted_gene_files', help='Files of sorted gene lists. Plot heatmaps in their order')
@@ -111,45 +112,46 @@ def main():
     ############################################
     # plot heatmap(s)
     ############################################
-    # if multiple sorts, create a dir for the plots
-    if len(anchors_sorted) > 1:
-        if not os.path.isdir('%s_heat' % options.output_pre):
-            os.mkdir('%s_heat' % options.output_pre)
+    if options.plot_heat:
+        # if multiple sorts, create a dir for the plots
+        if len(anchors_sorted) > 1:
+            if not os.path.isdir('%s_heat' % options.output_pre):
+                os.mkdir('%s_heat' % options.output_pre)
 
-    for s in range(len(anchors_sorted)):
-        df = {'Index':[], 'Anchor':[], 'Coverage':[]}
-        for si in range(len(anchors_sorted[s])):
-            anchor_id = anchors_sorted[s][si]
+        for s in range(len(anchors_sorted)):
+            df = {'Index':[], 'Anchor':[], 'Coverage':[]}
+            for si in range(len(anchors_sorted[s])):
+                anchor_id = anchors_sorted[s][si]
 
-            for i in range(len(coverage[anchor_id])):
-                if mode == 'mid':
-                    df['Index'].append(i - options.window/2)
-                else:
-                    df['Index'].append(i)
-                df['Anchor'].append(anchor_id)
-                
-                if options.log:
-                    cov = math.log(coverage[anchor_id][i], 2)
-                else:
-                    cov = coverage[anchor_id][i]
-
-                if options.control_files:
-                    if options.log:
-                        cov -= math.log(coverage_control[anchor_id][i], 2)
+                for i in range(len(coverage[anchor_id])):
+                    if mode == 'mid':
+                        df['Index'].append(i - options.window/2)
                     else:
-                        cov = cov / coverage_control[anchor_id][i]
+                        df['Index'].append(i)
+                    df['Anchor'].append(anchor_id)
 
-                df['Coverage'].append('%.4e' % cov)
+                    if options.log:
+                        cov = math.log(coverage[anchor_id][i], 2)
+                    else:
+                        cov = coverage[anchor_id][i]
 
-        r_script = '%s/plot_gff_cov_heat.r' % os.environ['RDIR']
-        if len(anchors_sorted) == 1:
-            out_pdf = '%s_heat.pdf' % options.output_pre
-        else:
-            sorted_gene_file = options.sorted_gene_files.split(',')[s]
-            sorted_gene_pre = os.path.splitext(os.path.split(sorted_gene_file)[-1])[0]
-            out_pdf = '%s_heat/%s.pdf' % (options.output_pre,sorted_gene_pre)
+                    if options.control_files:
+                        if options.log:
+                            cov -= math.log(coverage_control[anchor_id][i], 2)
+                        else:
+                            cov = cov / coverage_control[anchor_id][i]
 
-        ggplot.plot(r_script, df, [out_pdf, options.control_files!=None])
+                    df['Coverage'].append('%.4e' % cov)
+
+            r_script = '%s/plot_gff_cov_heat.r' % os.environ['RDIR']
+            if len(anchors_sorted) == 1:
+                out_pdf = '%s_heat.pdf' % options.output_pre
+            else:
+                sorted_gene_file = options.sorted_gene_files.split(',')[s]
+                sorted_gene_pre = os.path.splitext(os.path.split(sorted_gene_file)[-1])[0]
+                out_pdf = '%s_heat/%s.pdf' % (options.output_pre,sorted_gene_pre)
+
+            ggplot.plot(r_script, df, [out_pdf, options.control_files!=None])
 
     ############################################
     # plot meta-coverage

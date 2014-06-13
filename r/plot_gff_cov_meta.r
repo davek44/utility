@@ -12,14 +12,16 @@ if (ncol(df) == 2) {
     gp = ggplot(df, aes(x=Index, y=Coverage))
 } else {
     gp = ggplot(df, aes(x=Index, y=Coverage, color=Type)) +
-        scale_color_brewer(palette="Set1")
+        scale_color_manual("", values=c("#F46D43", "#66BD63"))
+
+        #scale_color_brewer(palette="Set1")
 }
 
 gp +
     geom_point() +
     geom_smooth() +
     theme_bw() +
-    theme(text=element_text(size=16)) +
+    theme(text=element_text(size=20)) +
     theme(legend.justification=c(1,0), legend.position=c(1,0))
 
 ggsave(paste(out.pre,"_raw.pdf",sep=""))
@@ -45,7 +47,8 @@ if (ncol(df) == 2) {
     }
 
     gp = ggplot(df, aes(x=Index, y=Coverage.Norm, color=Type)) +
-        scale_color_brewer(palette="Set1")
+        scale_color_manual("", values=c("#F46D43", "#66BD63"))
+        #scale_color_brewer(palette="Set1")
 }
 
 gp +
@@ -53,7 +56,7 @@ gp +
     geom_smooth() +
     scale_y_continuous("Normalized coverage") +
     theme_bw() +
-    theme(text=element_text(size=16)) +
+    theme(text=element_text(size=20)) +
     theme(legend.justification=c(1,0), legend.position=c(1,0))
 
 ggsave(paste(out.pre,"_norm.pdf",sep=""))
