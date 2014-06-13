@@ -81,7 +81,7 @@ def main():
 
         output_pdf = '%s/%s_%s.pdf' % (options.out_dir,cond1,cond2)
 
-        ggplot.plot('%s/cuff_scatter.r' % os.environ['RDIR'], df_dict, [output_pdf,cond1,cond2], df_file='df.txt')
+        ggplot.plot('%s/cuff_scatter.r' % os.environ['RDIR'], df_dict, [output_pdf,cond1,cond2,options.pseudocount])
 
 
 ################################################################################
