@@ -3,6 +3,11 @@ from optparse import OptionParser
 import os, subprocess
 import ggplot, gff, math, stats
 
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+from matplotlib_venn import venn2
+
 ################################################################################
 # peaks_diff_compare.py
 #
@@ -41,9 +46,10 @@ def main():
         peak_genes.add(gff.gtf_kv(line.split('\t')[8])['gene_id'])
     p.communicate()
 
-    # store test stats
+    # process RIP
     bound_tstats = []
     unbound_tstats = []
+    rip_genes = set()
 
     diff_in = open(diff_file)
     line = diff_in.readline()
@@ -57,12 +63,18 @@ def main():
         fpkm1 = float(a[7])
         fpkm2 = float(a[8])
         tstat = float(a[10])
+        sig = a[13].rstrip()
 
         if sample2 == 'input':
             tstat *= -1
 
         if status == 'OK' and not math.isnan(tstat):
             if options.sample1 in [None,sample1] and options.sample2 in [None,sample2]:
+                # save RIP bound
+                if sig == 'yes':
+                    rip_genes.add(gene_id)
+
+                # save test_stat
                 if gene_id in peak_genes:
                     bound_tstats.append(tstat)
                 else:
@@ -77,6 +89,9 @@ def main():
     z, p = stats.mannwhitneyu(bound_tstats, unbound_tstats)
     print z, p
 
+    ##################################################
+    # plot bound and unbound distributions
+    ##################################################
     # construct data frame
     df_dict = {'Peak':(['Yes']*len(bound_tstats) + ['No']*len(unbound_tstats)),
                'Test_stat':bound_tstats+unbound_tstats}
@@ -84,6 +99,17 @@ def main():
     r_script = '%s/peaks_diff_compare.r' % os.environ['RDIR']
 
     ggplot.plot(r_script, df_dict, [options.output_pre])
+
+    ##################################################
+    # plot venn diagram
+    ##################################################
+    clip_only = len(peak_genes - rip_genes)
+    rip_only = len(rip_genes - peak_genes)
+    both = len(peak_genes & rip_genes)
+
+    plt.figure()
+    venn_diag = venn2(subsets=(clip_only, rip_only, both), set_labels=['CLIP', 'RIP'])
+    plt.savefig('%s_venn.pdf' % options.output_pre)
 
 
 ################################################################################

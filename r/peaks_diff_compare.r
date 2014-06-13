@@ -10,11 +10,11 @@ x.min = quantile(df$Test_stat, .003, na.rm=T)
 x.max = quantile(df$Test_stat, .997, na.rm=T)
 
 ggplot(df, aes(x=Test_stat, colour=Peak)) +
-    geom_line(stat="density") +
+    geom_line(stat="density", size=1.5, alpha=0.8) +
     scale_x_continuous(limits=c(x.min,x.max)) +
     scale_color_brewer(palette="Set1") +
     theme_bw() +
-    theme(text=element_text(size=16)) +
+    theme(text=element_text(size=20)) +
     theme(legend.justification=c(1,1), legend.position=c(1,1))
 
 out.pdf = paste(out.pre, "_dens.pdf", sep="")
@@ -22,12 +22,12 @@ ggsave(out.pdf)
 
 
 ggplot(df, aes(x=Test_stat, colour=Peak)) +
-    stat_ecdf() +
+    stat_ecdf(size=1.5, alpha=0.8) +
     scale_x_continuous(limits=c(x.min,x.max)) +
     scale_y_continuous("") +
     scale_color_brewer(palette="Set1") +
     theme_bw() +
-    theme(text=element_text(size=16)) +
+    theme(text=element_text(size=20)) +
     theme(legend.justification=c(1,0), legend.position=c(1,0))
 
 out.pdf = paste(out.pre, "_cdf.pdf", sep="")
