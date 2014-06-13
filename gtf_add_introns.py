@@ -46,8 +46,10 @@ def main():
                     else:
                         istart = tx.exons[i].end+1
                         iend = tx.exons[i+1].start-1
+
                     raw_introns.add((istart,iend))
 
+        # filter highly redundant intron isoforms
         introns = filter_introns(raw_introns)
 
         # print exon isoforms
@@ -70,8 +72,11 @@ def main():
 
 ################################################################################
 # filter_introns
+#
+# Collapse clusters of highly similar introns.
 ################################################################################
-def filter_introns(raw_introns):
+def filter_introns(raw_introns, overlap_diff=5):
+    # initialize a cluster for every intron
     cluster_map = {}
     for i in range(len(raw_introns)):
         cluster_map[i] = i
@@ -80,6 +85,7 @@ def filter_introns(raw_introns):
     for i in range(len(raw_introns)):
         clusters[i] = set([i])
 
+    # recklessly merge intron clusters
     introns_list = list(raw_introns)
     for i in range(len(raw_introns)):
         for j in range(i+1,len(raw_introns)):
@@ -91,7 +97,7 @@ def filter_introns(raw_introns):
                 diff_i = abs(overlap - (end_i - start_i + 1))
                 diff_j = abs(overlap - (end_j - start_j + 1))
 
-                if diff_i <= 5 and diff_j <= 5:
+                if diff_i <= overlap_diff and diff_j <= overlap_diff:
                     cluster_j = cluster_map[j]
 
                     # move cluster j to cluster i
@@ -104,6 +110,7 @@ def filter_introns(raw_introns):
                     # erase cluster j
                     clusters[cluster_j] = set()
 
+    # return one intron per cluster
     final_introns = set()
     for i in range(len(raw_introns)):
         if len(clusters[i]) > 0:
