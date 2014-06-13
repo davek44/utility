@@ -13,6 +13,16 @@ import operator, os, subprocess, time
 def condorify(cmds):
     return ['runCmd -c "%s"' % c for c in cmds]
 
+############################################################
+# slurmify
+############################################################
+def slurmify(cmds, mem_mb=None):
+    if mem != None:
+        mem_str = '--mem %d' % mem_mb
+    else:
+        mem_str = ''
+        
+    return ['srun -p general -n 1 %s "%s"' % (mem_str,c) for c in cmds]
 
 ############################################################
 # exec_par
@@ -61,6 +71,37 @@ def exec_par(cmds, max_proc, print_cmd=False):
         # wait for all to finish
         for i in range(len(p)):
             p[i].wait()
+
+############################################################
+# slurm_par
+#
+# Execute the commands in the list 'cmds' in parallel on
+# SLURM, but only running 'max_proc' at a time.
+#
+# Doesn't work. Jobs are allocated resources, but won't run.
+# Also, I'd have to screen into login nodes, which
+# isn't great because I can't get back to them.
+############################################################
+def slurm_par(cmds, max_proc, queue='general', cpu=1, mem=None, out_files=None, err_files=None):
+    # preprocess cmds
+    if mem != None:
+        mem_str = '--mem %d' % mem
+    else:
+        mem_str = ''
+
+    if out_files != None:
+        out_strs = ['-o %s' % of for of in out_files]
+    else:
+        out_strs = ['']*len(cmds)
+
+    if err_files != None:
+        err_strs = ['-e %s' % ef for ef in err_files]
+    else:
+        err_strs = ['']*len(cmds)
+        
+    slurm_cmds = ['srun -p %s -n %d %s %s %s "%s"' % (queue, cpu, mem_str, out_strs[i], err_strs[i], cmds[i]) for i in range(len(cmds))]
+
+    exec_par(slurm_cmds, max_proc, print_cmd=True)
 
 
 ############################################################
