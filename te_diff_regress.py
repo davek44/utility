@@ -25,7 +25,7 @@ regression_tes = ['LINE/L1', 'LINE/L2', 'SINE/Alu', 'SINE/MIR', 'LTR/ERV1', 'LTR
 def main():
     usage = 'usage: %prog [options] <gtf> <diff>'
     parser = OptionParser(usage)
-    parser.add_option('-p', dest='plot_dir', default=None, help='Plot output directory [Default: %default]')
+    parser.add_option('-o', dest='out_dir', default='te_diff_regress', help='Output directory to print regression summaries [Default: %default]')
     parser.add_option('-t', dest='te_gff', default='%s/hg19.fa.out.tpf.gff'%os.environ['MASK'])
     (options,args) = parser.parse_args()
 
@@ -41,11 +41,10 @@ def main():
     # hash diffs stats
     gene_diffs = hash_diff(diff_file)
 
-    # clean plot directory
-    if options.plot_dir != None:
-        if os.path.isdir(options.plot_dir):
-            shutil.rmtree(options.plot_dir)
-        os.mkdir(options.plot_dir)
+    # clean output directory
+    if os.path.isdir(options.out_dir):
+        shutil.rmtree(options.out_dir)
+    os.mkdir(options.out_dir)
 
     table_lines = []
     pvals = []
@@ -74,7 +73,7 @@ def main():
         mod = smf.ols(formula='diff ~ %s' % covariate_str, data=df).fit()
 
         # output model
-        mod_out = open('%s/%s-%s.txt' % (options.plot_dir, sample1, sample2), 'w')
+        mod_out = open('%s/%s-%s.txt' % (options.out_dir, sample1, sample2), 'w')
         print >> mod_out, mod.summary()
         mod_out.close()
 
@@ -93,7 +92,7 @@ def main():
     # perform multiple hypothesis correction
     qvals = fdr.ben_hoch(pvals)
 
-    table_out = open('%s/table.txt' % options.plot_dir, 'w')
+    table_out = open('%s/table.txt' % options.out_dir, 'w')
     for i in range(len(table_lines)):
         print >> table_out, '%s %10.2e' % (table_lines[i],qvals[i])
     table_out.close()
