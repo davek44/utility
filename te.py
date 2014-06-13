@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from optparse import OptionParser
 import glob, os, subprocess, sys
-import gff
+from gff import gtf_kv
 
 ################################################################################
 # te.py
@@ -27,6 +27,10 @@ def main():
 ################################################################################
 def hash_genes_repeats(gtf_file, repeats_gff, gene_key='gene_id', add_star=True, stranded=False):
     gene_repeats = {}
+    for line in open(gtf_file):
+        a = line.split('\t')
+        gene_id = gtf_kv(a[8])[gene_key]
+        gene_repeats[gene_id] = set()
     
     p = subprocess.Popen('intersectBed -wo -a %s -b %s' % (gtf_file, repeats_gff), shell=True, stdout=subprocess.PIPE)
     line = p.stdout.readline()
@@ -34,8 +38,8 @@ def hash_genes_repeats(gtf_file, repeats_gff, gene_key='gene_id', add_star=True,
         a = line.split('\t')
 
         # get names
-        gene_id = gff.gtf_kv(a[8])[gene_key]
-        rep_kv = gff.gtf_kv(a[17])
+        gene_id = gtf_kv(a[8])[gene_key]
+        rep_kv = gtf_kv(a[17])
         rep = rep_kv['repeat']
         fam = rep_kv['family']
 
@@ -49,13 +53,13 @@ def hash_genes_repeats(gtf_file, repeats_gff, gene_key='gene_id', add_star=True,
             else:
                 orient = '-'
 
-            gene_repeats.setdefault(gene_id,set()).add((rep,fam,orient))
+            gene_repeats[gene_id].add((rep,fam,orient))
             if add_star:
                 gene_repeats[gene_id].add(('*',fam,orient))
                 gene_repeats[gene_id].add(('*','*',orient))
 
         else:
-            gene_repeats.setdefault(gene_id,set()).add((rep,fam))
+            gene_repeats[gene_id].add((rep,fam))
             if add_star:
                 gene_repeats[gene_id].add(('*',fam))
                 gene_repeats[gene_id].add(('*','*'))
@@ -83,8 +87,8 @@ def hash_genes_repeats_nt(gtf_file, repeats_gff, gene_key='gene_id', add_star=Tr
         a = line.split('\t')
 
         # get names
-        gene_id = gff.gtf_kv(a[8])['gene_id']
-        rep_kv = gff.gtf_kv(a[17])
+        gene_id = gtf_kv(a[8])['gene_id']
+        rep_kv = gtf_kv(a[17])
         rep = rep_kv['repeat']
         fam = rep_kv['family']
 
@@ -114,7 +118,7 @@ def hash_repeat_family():
     repeat_family = {}
     for line in open('%s/hg19.fa.out.tp.gff' % os.environ['MASK']):
         a = line.split('\t')
-        kv = gff.gtf_kv(a[8])
+        kv = gtf_kv(a[8])
         repeat_family[kv['repeat']] = kv['family']
     return repeat_family
 
@@ -128,7 +132,7 @@ def map_dfam_family():
     repeat_family = {}
     for line in open('%s/hg19.fa.out.tp.gff' % os.environ['MASK']):
         a = line.split('\t')
-        kv = gff.gtf_kv(a[8])
+        kv = gtf_kv(a[8])
         repeat_family[kv['repeat']] = kv['family']
 
     dfam_family = {}
@@ -149,7 +153,7 @@ def map_dfam_repeat():
     repeats = set()
     for line in open('%s/hg19.fa.out.tp.gff' % os.environ['MASK']):
         a = line.split('\t')
-        kv = gff.gtf_kv(a[8])
+        kv = gtf_kv(a[8])
         repeats.add(kv['repeat'])
 
     dfam_repeat = {}
