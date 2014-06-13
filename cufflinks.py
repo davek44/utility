@@ -117,13 +117,11 @@ class fpkm_tracking:
     def gene_expr_exp(self, gene, exp, not_found=float('nan')):
         gene_i = self.name_or_index(gene)
         if gene_i == None:
-            print >> sys.stderr, '%s expression not found' % gene
             return not_found
         else:
             for exp_i in range(len(self.experiments)):
                 if self.experiments[exp_i] == exp:
                     return self.expr[gene_i,exp_i]
-            print >> sys.stderr, '%s expression not found' % exp
             return not_found
 
 
@@ -203,12 +201,12 @@ class fpkm_tracking:
             if gene in self.gene_map:
                 return self.gene_map[gene]
             else:
-                print >> sys.stderr, 'Missing gene - %s' % gene
+                #print >> sys.stderr, 'Missing gene - %s' % gene
                 return None
         elif type(gene) == int:
             return gene
         else:
-            print >> sys.stderr, 'Bad gene input'
+            #print >> sys.stderr, 'Bad gene input'
             return None
 
     
