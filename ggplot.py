@@ -53,9 +53,13 @@ def plot(r_script, df_dict, args, df_file=None):
 #
 # Just print the given data frame dictionary to the output file given.
 ################################################################################
-def print_df(df_dict, out_file):
+def print_df(df_dict, out_file=None):
     # open
-    df_out = open(out_file, 'w')
+    if out_file == None:
+        df_fd, df_file = tempfile.mkstemp()
+    else:
+        df_file = out_file
+    df_out = open(df_file, 'w')
 
     # get headers
     headers = sorted(df_dict.keys())
@@ -74,3 +78,8 @@ def print_df(df_dict, out_file):
     for i in range(length):
         print >> df_out, ' '.join([str(df_dict[head][i]) for head in headers])
     df_out.close()
+
+    if out_file == None:
+        return df_fd, df_file
+    else:
+        return None
