@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from optparse import OptionParser
 from scipy.stats import lognorm, poisson
-import pdb, random, sys
+import pdb, random, subprocess, sys
 import pysam
 import gff, stats
 
@@ -93,7 +93,7 @@ def main():
 
     # open output files
     fastq_out = open('%s.fastq' % options.output_prefix, 'w')
-    gff_out = open('%s.gff' % options.output_prefix, 'w')
+    gff_out = open('%s_txome.gff' % options.output_prefix, 'w')
 
     # for each transcript
     read_index = 1
@@ -121,6 +121,9 @@ def main():
 
     fastq_out.close()
     gff_out.close()
+
+    # map back to genome
+    subprocess.call('tgff_cgff.py -c %s %s_txome.gff > %s_genome.gff' % (gtf_file, options.output_prefix, options.output_prefix), shell=True)
 
 
 ################################################################################
