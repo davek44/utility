@@ -16,7 +16,9 @@ import os, subprocess, tempfile
 def main():
     usage = 'usage: %prog [options] <possum_index> <fire_signif>'
     parser = OptionParser(usage)
+    parser.add_option('-p', dest='pvalue', type='float', default=1e-4, help='Possum search p-value [Default: %default]')
     parser.add_option('-r', dest='robust', type='int', default=8, help='Minimum motif robustness score (out of 10) [Default: %default]')
+    parser.add_option('-o', dest='possum_out', help='Keep the possum output file as this file name')
     (options,args) = parser.parse_args()
 
     if len(args) != 2:
@@ -29,13 +31,14 @@ def main():
     motifs_pwm = read_motif_pwms(fire_signif, options.robust)
 
     # run possum
-    possum_fd, possum_file = run_possum(motifs_pwm, possum_index)
+    possum_fd, possum_file = run_possum(motifs_pwm, possum_index, options.pvalue, options.possum_out)
 
     # convert output to gff
     possum2gff(possum_file)
 
-    os.close(possum_fd)
-    os.remove(possum_file)
+    if options.possum_out == None:
+        os.close(possum_fd)
+        os.remove(possum_file)
 
 
 ################################################################################
@@ -54,23 +57,28 @@ def read_motif_pwms(fire_signif, min_robust):
 
     motifs_pwm = {}
     for mre in motifs_re:
+        # strip outside '.'s. idk why FIRE adds those.
+        mre_strip = mre.strip('.')
+
         mpwm = []
 
         i = 0
-        while i < len(mre):
-            if mre[i] != '.':
+        while i < len(mre_strip):
+            if mre_strip[i] == '.':
+                mpwm.append({'A':1, 'C':1, 'G':1, 'T':1})
+            else:
                 mpwm.append({'A':0, 'C':0, 'G':0, 'T':0})
 
-                if mre[i] == '[':
+                if mre_strip[i] == '[':
                     i += 1
-                    while mre[i] != ']':
-                        mpwm[-1][mre[i]] += 1
+                    while mre_strip[i] != ']':
+                        mpwm[-1][mre_strip[i]] += 1
                         i += 1
                 else:
-                    mpwm[-1][mre[i]] += 1
+                    mpwm[-1][mre_strip[i]] += 1
             i += 1
 
-        motifs_pwm[mre] = mpwm
+        motifs_pwm[mre_strip] = mpwm
     
     return motifs_pwm
 
@@ -78,7 +86,7 @@ def read_motif_pwms(fire_signif, min_robust):
 ################################################################################
 # run_possum
 ################################################################################
-def run_possum(motifs_pwm, possum_index):
+def run_possum(motifs_pwm, possum_index, pval, possum_out):
     ############################################
     # print pwm's for possum
     pwm_fd, pwm_file = tempfile.mkstemp(dir='%s/research/scratch/temp' % os.environ['HOME'])
@@ -103,8 +111,14 @@ def run_possum(motifs_pwm, possum_index):
 
     ############################################
     # run possum
-    possum_fd, possum_file = tempfile.mkstemp(dir='%s/research/scratch/temp' % os.environ['HOME'])
-    subprocess.call('possumsearch -pr %s -db %s -freq %s_freqs.txt -lazy -esa -pval 1e-3 -fn -rc -format tabs > %s' % (pwm_file,possum_index,possum_index,possum_file), shell=True)
+    if possum_out == None:
+        possum_fd, possum_file = tempfile.mkstemp(dir='%s/research/scratch/temp' % os.environ['HOME'])
+    else:
+        possum_file = possum_out
+        possum_fd = None
+
+    #subprocess.call('possumsearch -pr %s -db %s -freq %s_freqs.txt -lazy -esa -all -pval %f -fn -rc -format tabs > %s' % (pwm_file,possum_index,possum_index,pval,possum_file), shell=True)
+    subprocess.call('possumsearch -pr %s -db %s -freq %s_freqs.txt -esa -mssth 1 -fn -rc -format tabs > %s' % (pwm_file,possum_index,possum_index,possum_file), shell=True)
 
     # clean
     os.close(pwm_fd)
@@ -125,7 +139,7 @@ def possum2gff(possum_file):
 
         motif_re = a[0]
         try:
-            start = int(a[5])-1
+            start = int(a[5])+1
         except:
             print 'ERROR: cant extract start'
             print a
