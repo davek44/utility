@@ -62,21 +62,21 @@ def main():
             # find most upstream tss
             promoter_tid = gene_transcripts[0]
             if gene_strand == '+':
-                upstream_pos = transcripts[promoter_tid].exons[0].start
+                upstream_tss = transcripts[promoter_tid].exons[0].start
             else:
-                upstream_pos = transcripts[promoter_tid].exons[-1].end
+                upstream_tss = transcripts[promoter_tid].exons[-1].end
 
             for transcript_id in gene_transcripts[1:]:
                 if gene_strand == '+':
                     transcript_pos = transcripts[transcript_id].exons[0].start
-                    if transcript_pos < upstream_pos:
+                    if transcript_pos < upstream_tss:
                         promoter_tid = transcript_id
-                        upstream_pos = transcript_pos
+                        upstream_tss = transcript_pos
                 else:
                     transcript_pos = transcripts[transcript_id].exons[-1].end
-                    if transcript_pos > upstream_pos:
+                    if transcript_pos > upstream_tss:
                         promoter_tid = transcript_id
-                        upstream_pos = transcript_pos
+                        upstream_tss = transcript_pos
 
             tss = upstream_tss
 
