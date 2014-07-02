@@ -29,6 +29,92 @@ def main():
     (options,args) = parser.parse_args()
 
 
+
+################################################################################
+# hash_fpkm
+#
+# Quick and dirty version to get at a single FPKM value.
+################################################################################
+def hash_fpkm(fpkm_file, experiment, fail=float('nan')):
+    gene_fpkm = {}
+
+    # get headers
+    fpkm_in = open(fpkm_file)
+    headers = fpkm_in.readline().split()
+
+    # find experiment column
+    exp_col = 0
+    while headers[exp_col] != '%s_FPKM' % experiment:
+        exp_col += 1
+
+    if headers[exp_col] != '%s_FPKM' % experiment:
+        print >> sys.stderr, '%s unfound' % experiment
+        exit(1)
+
+    for line in fpkm_in:
+        a = line.split('\t')
+        a[-1] = a[-1].rstrip()
+
+        gene_id = a[0]
+
+        if a[exp_col+3] in ['FAIL','HIDATA']:
+            fpkm = fail
+        else:
+            fpkm = float(a[exp_col])
+
+        gene_fpkm[gene_id] = fpkm
+
+    fpkm_in.close()
+
+    return gene_fpkm
+
+
+################################################################################
+# hash_fpkms
+#
+# Quick and dirty version to get the arithmetic mean of a few FPKM values.
+################################################################################
+def hash_fpkms(fpkm_file, experiments, fail=float('nan')):
+    gene_fpkm = {}
+
+    # get headers
+    fpkm_in = open(fpkm_file)
+    headers = fpkm_in.readline().split()
+
+    # find experiment columns
+    exp_cols = []
+    for i in range(len(headers)):
+        if headers[i][-5:] == '_FPKM':
+            if headers[i][:-5] in experiments:
+                exp_cols.append(i)
+
+    if len(exp_cols) != len(experiments):
+        print >> sys.stderr, '%s unfound' % (','.join(experiments))
+        exit(1)
+
+    for line in fpkm_in:
+        a = line.split('\t')
+        a[-1] = a[-1].rstrip()
+
+        gene_id = a[0]
+
+        nonfails = 0
+        for exp_col in exp_cols:
+            if a[exp_col+3] in ['FAIL','HIDATA']:
+                fpkm = fail
+            else:
+                fpkm = float(a[exp_col])
+                nonfails += 1
+
+            gene_fpkm[gene_id] = gene_fpkm.get(gene_id,0) + fpkm
+
+        gene_fpkm[gene_id] /= float(nonfails)
+
+    fpkm_in.close()
+
+    return gene_fpkm
+
+
 ################################################################################
 # fpkm_tracking
 ################################################################################
