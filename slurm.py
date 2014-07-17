@@ -22,7 +22,7 @@ def main():
     parser.add_option('-m', dest='mem', default=None, type='int')    
     (options,args) = parser.parse_args()
 
-    cmd = args
+    cmd = args[0]
 
     main_job = Job(cmd, out_file=options.out_file, err_file=options.err_file, queue=options.queue, cpu=options.cpu, mem=options.mem)
     main_job.launch()
@@ -55,9 +55,9 @@ class Job:
     ############################################################
     # clean
     ############################################################
-    def clean():
-        os.close(sbatch_fd)
-        os.remove(sbatch_file)
+    def clean(self):
+        os.close(self.sbatch_fd)
+        os.remove(self.sbatch_file)
 
 
     ############################################################
@@ -65,10 +65,10 @@ class Job:
     #
     # Make an sbatch file, launch it, and save the job id.
     ############################################################
-    def launch():
+    def launch(self):
         # make sbatch script
-        self.sbatch_fd, self.sbatch_file = tempfile.mkstemp()
-        sbatch_out = open(sbatch_file, 'w')
+        self.sbatch_fd, self.sbatch_file = tempfile.mkstemp(dir='%s/research/scratch/temp' % os.environ['HOME'])
+        sbatch_out = open(self.sbatch_file, 'w')
 
         print >> sbatch_out, '#!/bin/sh'
         print >> sbatch_out, ''
@@ -98,18 +98,23 @@ class Job:
     # Use 'sacct' tp update the job's status. Return True if
     # found and False if not.
     ############################################################
-    def update_status():
+    def update_status(self):
         status = None
 
         sacct_str = subprocess.check_output('sacct', shell=True)
 
-        sacct_lines = sacct.split('\n')
+        sacct_lines = sacct_str.split('\n')
         for line in sacct_lines[2:]:
             a = line.split()
 
-            if int(a[0]) == self.id:
-                status = a[5]
+            try:
+                line_id = int(a[0])
+            except:
+                line_id = None
 
+            if line_id == self.id:
+                status = a[5]
+                
         if status == None:
             return False
         else:
