@@ -147,7 +147,7 @@ def map_dfam_family():
 ################################################################################
 # map_dfam_repeat
 #
-# Return a dict mapping DFAM repeats to RepeatMasker repeats.
+# Return a dict mapping DFAM repeats to sets of RepeatMasker repeats.
 ################################################################################
 def map_dfam_repeat():
     repeats = set()
@@ -160,7 +160,7 @@ def map_dfam_repeat():
     for repeat in repeats:
         dfam_tes = map_rm_dfam(repeat, quiet=True)
         for dfam_te in dfam_tes:
-            dfam_repeat[dfam_te] = repeat
+            dfam_repeat.setdefault(dfam_te,set()).add(repeat)
 
     return dfam_repeat
 
