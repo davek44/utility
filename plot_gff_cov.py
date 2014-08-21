@@ -5,7 +5,7 @@ import math, os, pdb, random, shutil, stats, subprocess, sys, tempfile
 #from guppy import hpy
 import pysam
 
-import count_reads, gff, ggplot
+import gff, ggplot
 
 ################################################################################
 # plot_gff_cov.py
@@ -31,6 +31,7 @@ def main():
     parser.add_option('-c', dest='control_files', default=None, help='Control BAM or GFF files (comma separated)')
     parser.add_option('-e', dest='plot_heat', default=False, help='Plot as a heatmap [Default: %default]')
     parser.add_option('-l', dest='log', default=False, action='store_true', help='log2 coverage [Default: %default]')
+    parser.add_option('--labels', dest='labels', default='Primary,Control', help='Plot labels [Default:%default]')
     parser.add_option('-o', dest='output_pre', default='gff_cov', help='Output prefix [Default: %default]')
     parser.add_option('-s', dest='sorted_gene_files', help='Files of sorted gene lists. Plot heatmaps in their order')
 
@@ -50,6 +51,8 @@ def main():
 
     if options.control_files:
         control_files = options.control_files.split(',')
+
+    plot_labels = options.labels.split(',')
 
     anchor_is_gtf = (anchor_gff[-4:] == '.gtf')
 
@@ -142,8 +145,7 @@ def main():
                             cov = cov / coverage_control[anchor_id][i]
 
                     df['Coverage'].append('%.4e' % cov)
-
-            r_script = '%s/plot_gff_cov_heat.r' % os.environ['RDIR']
+            
             if len(anchors_sorted) == 1:
                 out_pdf = '%s_heat.pdf' % options.output_pre
             else:
@@ -151,6 +153,7 @@ def main():
                 sorted_gene_pre = os.path.splitext(os.path.split(sorted_gene_file)[-1])[0]
                 out_pdf = '%s_heat/%s.pdf' % (options.output_pre,sorted_gene_pre)
 
+            r_script = '%s/plot_gff_cov_heat.r' % os.environ['RDIR']
             ggplot.plot(r_script, df, [out_pdf, options.control_files!=None])
 
     ############################################
@@ -194,7 +197,8 @@ def main():
                 df['Coverage'].append(stats.mean([coverage_control[anchor_id][i] for anchor_id in coverage_control]))
 
     r_script = '%s/plot_gff_cov_meta.r' % os.environ['RDIR']
-    ggplot.plot(r_script, df, [options.output_pre])
+    out_df = '%s_meta.df' % options.output_pre
+    ggplot.plot(r_script, df, [options.output_pre, plot_labels[0], plot_labels[1]], df_file=out_df)
 
 
 ################################################################################
@@ -235,7 +239,7 @@ def compute_coverage(anchor_gff, event_files, mode, anchor_is_gtf, bins):
 
     events = 0
     for event_file in event_files:
-        print >> sys.stderr, 'Computing coverage for %s' % event_file
+        print >> sys.stderr, 'Computing coverage for %s in %s' % (event_file, anchor_gff)
 
         ############################################
         # preprocess BAM/GFF
@@ -405,6 +409,8 @@ def find_inc_coords(anchor_id, astart, aend, astrand, rstart, rend, mode, bins, 
 # initialize_coverage
 ################################################################################
 def initialize_coverage(anchor_gff, mode, anchor_is_gtf, bins):
+    print >> sys.stderr, 'Initializing coverage using anchor gff %s' % anchor_gff
+
     coverage = {}
     for line in open(anchor_gff):
         a = line.split('\t')
@@ -426,6 +432,8 @@ def initialize_coverage(anchor_gff, mode, anchor_is_gtf, bins):
             else:
                 print >> sys.stderr, 'Unknown mode %s' % mode
                 exit(1)
+
+    print >> sys.stderr, '%d anchors found.' % len(coverage)
 
     return coverage
 
@@ -515,6 +523,7 @@ def preprocess_anchors(anchor_gff, mode, max_anchors, anchor_is_gtf, min_length,
 
     # make new GFF
     prep_anchor_fd, prep_anchor_gff = tempfile.mkstemp()
+    print >> sys.stderr, 'Opening tempfile %s for preprocessed anchors.' % prep_anchor_gff
     prep_anchor_out = open(prep_anchor_gff, 'w')
 
     for line in open(anchor_gff):
