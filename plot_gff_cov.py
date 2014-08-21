@@ -29,7 +29,7 @@ def main():
     parser = OptionParser(usage)
     parser.add_option('-a', dest='max_anchors', default=1000, type='int', help='Maximum number of anchors to consider [Default: %default]')
     parser.add_option('-c', dest='control_files', default=None, help='Control BAM or GFF files (comma separated)')
-    parser.add_option('-e', dest='plot_heat', default=False, help='Plot as a heatmap [Default: %default]')
+    parser.add_option('-e', dest='plot_heat', default=False, action='store_true', help='Plot as a heatmap [Default: %default]')
     parser.add_option('-l', dest='log', default=False, action='store_true', help='log2 coverage [Default: %default]')
     parser.add_option('--labels', dest='labels', default='Primary,Control', help='Plot labels [Default:%default]')
     parser.add_option('-o', dest='output_pre', default='gff_cov', help='Output prefix [Default: %default]')
@@ -302,7 +302,7 @@ def compute_coverage(anchor_gff, event_files, mode, anchor_is_gtf, bins):
                 if anchor_is_gtf:
                     anchor_id = gff.gtf_kv(a[acol+8])['transcript_id']
                 else:
-                    anchor_id = (achrom, astart, aend)
+                    anchor_id = '%s:%d-%d' % (achrom, astart, aend)
 
                 # find where to increment
                 inc_start, inc_end = find_inc_coords(anchor_id, astart, aend, astrand, rstart, rend, mode, bins, transcripts, transcript_lengths)
@@ -422,7 +422,7 @@ def initialize_coverage(anchor_gff, mode, anchor_is_gtf, bins):
         if anchor_is_gtf:
             anchor_id = gff.gtf_kv(a[8])['transcript_id']
         else:
-            anchor_id = (chrom, start, end)
+            anchor_id = '%s:%d-%d' % (chrom, start, end)
             
         if not anchor_id in coverage:
             if mode == 'span':
