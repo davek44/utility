@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 from optparse import OptionParser
 import os, subprocess
-import ggplot, gff, math, stats
+import ggplot, gff, math, os, stats, subprocess, tempfile
+import ripseq
 
 import matplotlib
 matplotlib.use('Agg')
@@ -24,6 +25,8 @@ def main():
     parser.add_option('-c', dest='control_fpkm_file', help='Control FPKM tracking file')
     parser.add_option('-g', dest='ref_gtf', default='%s/gencode.v18.annotation.gtf'%os.environ['GENCODE'])
     parser.add_option('-o', dest='output_pre', default='', help='Output prefix [Default: %default]')
+    parser.add_option('-r', dest='rbp', default='RBP', help='RBP name [Default: %default]')
+    parser.add_option('-s', dest='single_gene_loci', default=False, action='store_true', help='Only use single gene loci [Default: %default]')
     parser.add_option('--sample1', dest='sample1', help='Sample_1 name in cuffdiff')
     parser.add_option('--sample2', dest='sample2', help='Sample_2 name in cuffdiff')
     (options,args) = parser.parse_args()
@@ -34,82 +37,127 @@ def main():
         peaks_gff = args[0]
         diff_file = args[1]
 
+    ##################################################
+    # process GTF
+    ##################################################
+    if options.single_gene_loci:
+        single_gtf_fd, single_gtf_file = filter_single(options.ref_gtf)
+        options.ref_gtf = single_gtf_file
+
+    gtf_genes = gff.gtf_gene_set(options.ref_gtf)
+
+    ##################################################
+    # collect CLIP peak bound genes
+    ##################################################
+    peak_genes = set()
+    p = subprocess.Popen('intersectBed -s -u -a %s -b %s' % (options.ref_gtf, peaks_gff), shell=True, stdout=subprocess.PIPE)
+    for line in p.stdout:
+        peak_genes.add(gff.gtf_kv(line.split('\t')[8])['gene_id'])
+    p.communicate()
+
     # find expressed genes in peak calls
     silent_genes = set()
     if options.control_fpkm_file:
         silent_genes = find_silent(options.control_fpkm_file)
 
-    # find peak bound genes
-    peak_genes = set()
-    p = subprocess.Popen('intersectBed -s -u -a %s -b %s' % (options.ref_gtf,peaks_gff), shell=True, stdout=subprocess.PIPE)
-    for line in p.stdout:
-        peak_genes.add(gff.gtf_kv(line.split('\t')[8])['gene_id'])
-    p.communicate()
-
-    # process RIP
-    bound_tstats = []
-    unbound_tstats = []
-    rip_genes = set()
-
-    diff_in = open(diff_file)
-    line = diff_in.readline()
-    for line in diff_in:
-        a = line.split('\t')
-
-        gene_id = a[0]
-        sample1 = a[4]
-        sample2 = a[5]
-        status = a[6]
-        fpkm1 = float(a[7])
-        fpkm2 = float(a[8])
-        tstat = float(a[10])
-        sig = a[13].rstrip()
-
-        if sample2 == 'input':
-            tstat *= -1
-
-        if status == 'OK' and not math.isnan(tstat):
-            if options.sample1 in [None,sample1] and options.sample2 in [None,sample2]:
-                # save RIP bound
-                if sig == 'yes':
-                    rip_genes.add(gene_id)
-
-                # save test_stat
-                if gene_id in peak_genes:
-                    bound_tstats.append(tstat)
-                else:
-                    if not gene_id in silent_genes:
-                        unbound_tstats.append(tstat)
-
-    print '%d silent genes' % len(silent_genes)
-    print '%d bound genes' % len(bound_tstats)
-    print '%d unbound genes' % len(unbound_tstats)
-
-    # perform statistical test
-    z, p = stats.mannwhitneyu(bound_tstats, unbound_tstats)
-    print z, p
+    ##################################################
+    # collect RIP stats
+    ##################################################
+    rip_fold, rip_bound = ripseq.hash_rip(diff_file, use_fold=True, one_rbp=True)
 
     ##################################################
     # plot bound and unbound distributions
     ##################################################
     # construct data frame
-    df_dict = {'Peak':(['Yes']*len(bound_tstats) + ['No']*len(unbound_tstats)),
-               'Test_stat':bound_tstats+unbound_tstats}
+    df_dict = {'Gene':[], 'CLIP':[], 'RIP':[]}
+    for gene_id in rip_fold:
+        if gene_id in gtf_genes and (len(silent_genes) == 0 or gene_id not in silent_genes):
+            df_dict['Gene'].append(gene_id)
+            df_dict['RIP'].append(rip_fold[gene_id])
+            if gene_id in peak_genes:
+                df_dict['CLIP'].append('Bound')
+            else:
+                df_dict['CLIP'].append('Unbound')
 
     r_script = '%s/peaks_diff_compare.r' % os.environ['RDIR']
+    ggplot.plot(r_script, df_dict, [options.output_pre, options.rbp], df_file='%s_df.txt' % options.output_pre)
 
-    ggplot.plot(r_script, df_dict, [options.output_pre])
+    ##################################################
+    # compute stats on bound and unbound distributions
+    ##################################################
+    bound_fold = [df_dict['RIP'][i] for i in range(len(df_dict['RIP'])) if df_dict['CLIP'][i] == 'Bound']
+    unbound_fold = [df_dict['RIP'][i] for i in range(len(df_dict['RIP'])) if df_dict['CLIP'][i] == 'Unbound']
+
+    # perform statistical test
+    z, p = stats.mannwhitneyu(bound_fold, unbound_fold)
+
+    stats_out = open('%s_stats.txt' % options.output_pre, 'w')
+    cols = (options.rbp, len(bound_fold), stats.mean(bound_fold), len(unbound_fold), stats.mean(unbound_fold), z, p)    
+    print >> stats_out, '%-10s  %5d  %6.2f  %5d  %6.2f  %6.2f  %9.2e' % cols
+    stats_out.close()
 
     ##################################################
     # plot venn diagram
     ##################################################
+    rip_genes = set([df_dict['Gene'][i] for i in range(len(df_dict['Gene'])) if rip_bound.get(df_dict['Gene'][i],False)])
+
     clip_only = len(peak_genes - rip_genes)
     rip_only = len(rip_genes - peak_genes)
     both = len(peak_genes & rip_genes)
 
-    plt.figure()
-    venn_diag = venn2(subsets=(clip_only, rip_only, both), set_labels=['CLIP', 'RIP'])
-    plt.savefig('%s_venn.pdf' % options.output_pre)
+    if clip_only > 0 and rip_only > 0:
+        plt.figure()
+        venn_diag = venn2(subsets=(clip_only, rip_only, both), set_labels=['CLIP', 'RIP'], set_colors=['#e41a1c', '#377eb8'])
+        plt.savefig('%s_venn.pdf' % options.output_pre)
+
+    ##################################################
+    # clean
+    ##################################################
+    if options.single_gene_loci:
+        os.close(single_gtf_fd)
+        os.remove(single_gtf_file)
+
+
+################################################################################
+# filter_single
+#
+# Input
+#   ref_gtf:
+#
+# Output
+#   single_gtf_fd:
+#   single_gtf_file:
+################################################################################
+def filter_single(ref_gtf):
+    # intersect with self and compute overlap sets
+    #p = subprocess.Popen('intersectBed -sorted -wo -s -a %s -b %s' % (ref_gtf, ref_gtf), shell=True, stdout=subprocess.PIPE)
+    p = subprocess.Popen('intersectBed -wo -s -a %s -b %s' % (ref_gtf, ref_gtf), shell=True, stdout=subprocess.PIPE)
+
+    # computer overlaps
+    gene_overlaps = {}
+    for line in p.stdout:
+        a = line.split('\t')
+
+        gid1 = gff.gtf_kv(a[8])['gene_id']
+        gid2 = gff.gtf_kv(a[17])['gene_id']
+
+        if gid1 != gid2:
+            gene_overlaps.setdefault(gid1,set()).add(gid2)
+            gene_overlaps.setdefault(gid2,set()).add(gid1)
+
+    p.communicate()
+
+    # filter overlapping genes out
+    single_gtf_fd, single_gtf_file = tempfile.mkstemp()
+    single_gtf_out = open(single_gtf_file, 'w')
+    for line in open(ref_gtf):
+        a = line.split('\t')
+        gene_id = gff.gtf_kv(a[8])['gene_id']
+        if gene_id not in gene_overlaps:
+            print >> single_gtf_out, line,
+    single_gtf_out.close()
+
+    return single_gtf_fd, single_gtf_file
 
 
 ################################################################################
