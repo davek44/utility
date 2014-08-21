@@ -66,6 +66,74 @@ def kld(P, Q):
 
 
 ################################################################################
+# lowess_predict
+#
+# Use a Lowess regression to predict values for new data.
+#
+# Obtain a Lowess model using statsmodels:
+#  http://statsmodels.sourceforge.net/devel/generated/statsmodels.nonparametric.smoothers_lowess.lowess.html
+#  https://github.com/statsmodels/statsmodels/blob/master/statsmodels/nonparametric/smoothers_lowess.py
+#
+# E.g.
+#  lowess_model = sm.nonparametric.lowess(h3k4me3, fpkm, frac=0.3, delta=0.01)
+#    which returns a list of tuples of h3k4me3 paired with fpkm predictions.
+#
+# Input
+#  lowess_model: Object return by statsmodels sm.nonparametric.lowess
+#  exog:         List of new data to predict
+#
+# Output:
+#  predts:       Array of predictions
+#  
+################################################################################
+def lowess_predict(lowess_model, exog):
+    # attach index and sort
+    exog_index = [(exog[i],i) for i in range(len(exog))]
+    exog_index.sort()
+
+    pred_index = []
+    i_exog = 0
+    i_model = 0
+    
+    while i_exog < len(exog_index) and i_model < len(lowess_model):
+
+        # we're past the value; try to predict
+        if exog_index[i_exog][0] < lowess_model[i_model][0]:
+            if i_model == 0:
+                # take closest
+                pred_index.append((lowess_model[i_model][1], exog_index[i_exog][1]))
+            else:
+                # interpolate
+                pct_between = (exog_index[i_exog][0] - lowess_model[i_model-1][0]) / (lowess_model[i_model][0] - lowess_model[i_model-1][0])
+                pct_pred = lowess_model[i_model-1][1] + pct_between*(lowess_model[i_model][1] - lowess_model[i_model-1][1])
+                pred_index.append((pct_pred, exog_index[i_exog][1]))
+
+            i_exog += 1
+
+        # nailed it
+        elif exog_index[i_exog][0] == lowess_model[i_model][0]:
+            pred_index.append((lowess_model[i_model][1], exog_index[i_exog][1]))
+
+            i_exog += 1
+
+        # we're in front of the value, move up
+        else:
+            i_model += 1
+
+    # finish off remainder
+    while i_exog < len(exog_index):
+        pred_index.append((lowess_model[-1][1], exog_index[i_exog][1]))
+        i_exog += 1
+
+    # reorder
+    index_pred = [(pred_index[i][1], pred_index[i][0]) for i in range(len(pred_index))]
+    index_pred.sort()
+    pred = [index_pred[i][1] for i in range(len(index_pred))]
+
+    return np.array(pred)
+
+
+################################################################################
 # mannwhitneyu
 #
 # My version that returns the z value like ranksums.
