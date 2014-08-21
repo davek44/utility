@@ -6,11 +6,11 @@ output.pdf = ca[2]
 
 df = read.table(df.file, header=T, quote="\"")
 
-xmin = quantile(df$fold, .007, na.rm=T)
-xmax = quantile(df$fold, .993, na.rm=T)
+xmin = quantile(df$diff, .005, na.rm=T)
+xmax = quantile(df$diff, .995, na.rm=T)
 
-ggplot(df, aes(x=fold, color=class)) +
-    stat_ecdf(size=1.5, alpha=0.8) +
+ggplot(df, aes(x=diff, color=class)) +
+    stat_ecdf(size=1.5, alpha=0.8, na.rm=T) +
     scale_x_continuous("log2 RIP/Input", limits=c(xmin,xmax)) +
     scale_y_continuous("") +
     scale_color_manual("", values=c("#F46D43", "#66BD63")) +
@@ -21,4 +21,5 @@ ggplot(df, aes(x=fold, color=class)) +
 #     scale_x_continuous("Differential expression test statistic", limits=c(xmin,xmax)) +
 #     scale_color_brewer("", palette="Set1") +
 
+cat(output.pdf)
 ggsave(output.pdf)
