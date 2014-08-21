@@ -52,7 +52,7 @@ def hash_diff(diff_file, stat='fold', max_stat=None, min_fpkm=None, sample_first
         qval = float(a[11])
         sig = a[-1].rstrip()
 
-        if sample2 == force_first:
+        if sample2 == sample_first:
             sample2, sample1 = sample1, sample2
             fpkm2, fpkm1 = fpkm1, fpkm2
             fold_change *= -1
