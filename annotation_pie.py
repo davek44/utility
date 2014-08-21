@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 from optparse import OptionParser
-import math, os, re, subprocess, tempfile
+import math, os, re, sys, subprocess, tempfile
 import pysam
 import ggplot
 
@@ -30,11 +30,20 @@ def main():
         parser.error(usage)
 
     if genome == 'hg19':
-        annotation_dir = '%s/pie_unstranded' % os.environ['GENCODE']
         assembly_dir = '%s/research/common/data/genomes/hg19/assembly' % os.environ['HOME']
+        if options.paired_stranded:
+            annotation_dir = '%s/pie_stranded' % os.environ['GENCODE']
+        else:
+            annotation_dir = '%s/pie_unstranded' % os.environ['GENCODE']
+
     elif genome == 'mm9':
-        annotation_dir = '/n/rinn_data1/indexes/mouse/mm9/annotations/dk_pie'
         assembly_dir = '%s/research/common/data/genomes/mm9/assembly' % os.environ['HOME']
+        if options.paired_stranded:
+            print >> sys.stderr, 'Stranded annotation BEDs dont exist for mm9'
+            exit(1)
+        else:
+            annotation_dir = '/n/rinn_data1/indexes/mouse/mm9/annotations/dk_pie'
+
     else:
         parser.error('Genome must specify hg19 or mm9.')
 
