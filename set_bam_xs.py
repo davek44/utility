@@ -17,7 +17,9 @@ import pysam
 def main():
     usage = 'usage: %prog [options] <bam>'
     parser = OptionParser(usage)
+    parser.add_option('-a', dest='alter_bam', help='Print alterations to this file [Default: %default]')
     parser.add_option('-o', dest='bam_out_file', help='Output BAM file')
+    parser.add_option('-r', dest='reverse_protocol', default=False, action='store_true', help='For fr-secondstrand [Default: %default]')
     parser.add_option('-s', dest='strip', action='store_true', default=False, help='Strip XS tags for unspliced reads [Default: %default]')
     (options,args) = parser.parse_args()
 
@@ -32,6 +34,9 @@ def main():
 
     bam_in = pysam.Samfile(bam_in_file, 'rb')
     bam_out = pysam.Samfile(options.bam_out_file, 'wb', template=bam_in)
+
+    if options.alter_bam:
+        alter_bam_out = pysam.Samfile(options.alter_bam, 'wb', template=bam_in)
 
     for aligned_read in bam_in:
         # just strip the tag
@@ -74,22 +79,44 @@ def main():
                 else:
                     new_xs = '+'
 
+            if options.reverse_protocol:
+                if new_xs == '+':
+                    new_xs = '-'
+                else:
+                    new_xs = '+'
+
             # toss it if the splicing strand differs
             if not splice_disagree(aligned_read, new_xs):
-                # remove existing XS tag
-                rm_xs(aligned_read)
+                # get old
+                try:
+                    old_xs = aligned_read.opt('XS')
+                except:
+                    old_xs = None
 
-                # set XS tag
-                aligned_read.tags = aligned_read.tags + [('XS',new_xs)]
+                if old_xs == new_xs:
+                    # write as is
+                    bam_out.write(aligned_read)
 
-                # fix CP tag
-                fix_cp(aligned_read)
+                else:
+                    # remove existing XS tag
+                    rm_xs(aligned_read)
 
-                # output
-                bam_out.write(aligned_read)
+                    # set XS tag
+                    aligned_read.tags = aligned_read.tags + [('XS',new_xs)]
+
+                    # fix CP tag
+                    fix_cp(aligned_read)
+
+                    # output
+                    bam_out.write(aligned_read)
+
+                    if options.alter_bam:
+                        alter_bam_out.write(aligned_read)
 
     bam_in.close()
     bam_out.close()
+    if options.alter_bam:
+        alter_bam_out.close()
     
 
 ################################################################################
