@@ -35,7 +35,7 @@ def main():
 #
 # Quick and dirty version to get at a single FPKM value.
 ################################################################################
-def hash_fpkm(fpkm_file, experiment, fail=float('nan')):
+def hash_fpkm(fpkm_file, experiment='', fail=float('nan')):
     gene_fpkm = {}
 
     # get headers
@@ -44,10 +44,10 @@ def hash_fpkm(fpkm_file, experiment, fail=float('nan')):
 
     # find experiment column
     exp_col = 0
-    while headers[exp_col] != '%s_FPKM' % experiment:
+    while headers[exp_col] != 'FPKM' and headers[exp_col] != '%s_FPKM' % experiment:
         exp_col += 1
 
-    if headers[exp_col] != '%s_FPKM' % experiment:
+    if headers[exp_col] != 'FPKM' and headers[exp_col] != '%s_FPKM' % experiment:
         print >> sys.stderr, '%s unfound' % experiment
         exit(1)
 
@@ -108,7 +108,10 @@ def hash_fpkms(fpkm_file, experiments, fail=float('nan')):
 
             gene_fpkm[gene_id] = gene_fpkm.get(gene_id,0) + fpkm
 
-        gene_fpkm[gene_id] /= float(nonfails)
+        if nonfails > 0:
+            gene_fpkm[gene_id] /= float(nonfails)
+        else:
+            gene_fpkm[gene_id] = fail
 
     fpkm_in.close()
 
@@ -137,7 +140,9 @@ class fpkm_tracking:
         fpkm_in.close()
 
         self.gene_map = dict([(self.genes[i],i) for i in range(len(self.genes))])
-        self.experiments = [h[:-5] for h in headers if h[-5:] == '_FPKM']
+        self.experiments = [h[:-5] for h in headers if h == 'FPKM' or h[-5:] == '_FPKM']
+        if len(self.experiments) == 1 and self.experiments[0] == '':
+            self.experiments[0] = 'unknown'
 
         # obtain expression
         self.expr = empty([len(self.genes), len(self.experiments)])
@@ -151,7 +156,7 @@ class fpkm_tracking:
             a[-1] = a[-1].rstrip()
             e = 0
             for i in range(len(headers)):
-                if headers[i][-5:] == '_FPKM':
+                if headers[i] == 'FPKM' or headers[i][-5:] == '_FPKM':
                     if a[i+3] in ['FAIL','HIDATA']:
                         self.expr[g,e] = float('nan')
                     else:
@@ -187,10 +192,11 @@ class fpkm_tracking:
     #
     # Return an expression vector for the given gene.
     ############################################################################
-    def gene_expr(self, gene, not_found=float('nan')):
+    def gene_expr(self, gene, not_found=float('nan'), fail=float('nan')):
         gene_i = self.name_or_index(gene)
         if gene_i:
-            return self.expr[gene_i,:]
+            expr_vec = [e if not math.isnan(e) else fail for e in self.expr[gene_i,:]]
+            return expr_vec
         else:
             return [not_found]*len(self.experiments)
 
@@ -200,14 +206,17 @@ class fpkm_tracking:
     #
     # Return FPKM for a given gene in a given experiment.
     ############################################################################
-    def gene_expr_exp(self, gene, exp, not_found=float('nan')):
+    def gene_expr_exp(self, gene, exp, not_found=float('nan'), fail=float('nan')):
         gene_i = self.name_or_index(gene)
         if gene_i == None:
             return not_found
         else:
             for exp_i in range(len(self.experiments)):
                 if self.experiments[exp_i] == exp:
-                    return self.expr[gene_i,exp_i]
+                    if math.isnan(self.expr[gene_i,exp_i]):
+                        return fail
+                    else:
+                        return self.expr[gene_i,exp_i]
             return not_found
 
 
