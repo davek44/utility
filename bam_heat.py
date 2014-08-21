@@ -53,12 +53,17 @@ def main():
         start = int(a[3])
         end = int(a[4])
         mid = start + (end-start)/2
-        a[3] = str(mid - options.range/2)
-        a[4] = str(mid + options.range/2)
-        a[-1] = a[-1].rstrip()
 
-        if random.random() < sample_prob:
-            print >> gff_range_out, '\t'.join(a)
+        range_start = mid - options.range/2
+        range_end = mid + options.range/2
+
+        if range_start > 0:
+            a[3] = str(mid - options.range/2)
+            a[4] = str(mid + options.range/2)
+            a[-1] = a[-1].rstrip()
+
+            if random.random() < sample_prob:
+                print >> gff_range_out, '\t'.join(a)
 
     gff_range_out.close()
 
@@ -152,7 +157,7 @@ def main():
             sorted_gene_pre = os.path.splitext(os.path.split(sorted_gene_file)[-1])[0]
             out_pdf = '%s_heat/%s.pdf' % (options.output_pre,sorted_gene_pre)
 
-        ggplot.plot(r_script, df, [out_pdf, options.control_bam_files!=None], df_file='df_heat.txt')
+        ggplot.plot(r_script, df, [out_pdf, options.control_bam_files!=None])
 
     ############################################
     # plot meta-coverage
@@ -182,7 +187,7 @@ def main():
     r_script = '%s/bam_heat_meta.r' % os.environ['RDIR']
     out_pdf = '%s_meta.pdf' % options.output_pre
 
-    ggplot.plot(r_script, df, [out_pdf], df_file='df_meta.txt')
+    ggplot.plot(r_script, df, [out_pdf])
 
 
 ################################################################################
