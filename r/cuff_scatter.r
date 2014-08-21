@@ -27,8 +27,9 @@ gp +
     scale_x_continuous(paste(cond1, "log2 FPKM"), lim=c(fpkm.min,fpkm.max)) +
     scale_y_continuous(paste(cond2, "log2 FPKM"), lim=c(fpkm.min,fpkm.max)) +
     geom_abline(intercept=0, slope=1, linetype=2) +
-    ggtitle(paste(cond1, "vs", cond2)) +
     theme_bw() +
     theme(text=element_text(size=16))
+
+#    ggtitle(paste(cond1, "vs", cond2)) +
 
 ggsave(output.pdf)
