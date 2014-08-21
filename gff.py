@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from optparse import OptionParser
 import os, sys
+import stats
 
 ################################################################################
 # gff
@@ -120,10 +121,20 @@ def g2t(gtf_file):
 ################################################################################
 def gtf_gene_set(gtf_file, gtf_key='gene_id'):
     gene_set = set()
-    for line in open(gtf_file):
+
+    gtf_in = open(gtf_file)
+
+    # ignore header
+    line = gtf_in.readline()
+    while line[:2] == '##':
+        line = gtf_in.readline()
+
+    while line:
         a = line.split('\t')
         gene_id = gtf_kv(a[8])[gtf_key]
         gene_set.add(gene_id)
+        line = gtf_in.readline()
+
     return gene_set
 
 
@@ -202,6 +213,55 @@ def kv_gtf(d):
             s += '%s "%s"; ' % (key,d[key])
 
     return s
+
+
+################################################################################
+# length_filter
+#
+# Filter the GTF file for transcripts in between the given multiplicative
+# spread.
+#
+# Input
+#  gtf_file:
+#  spread_lower:
+#  spread_upper:
+#
+# Output
+#  
+################################################################################
+def length_filter(ref_gtf, filter_gtf, spread_lower, spread_upper, verbose=False):
+     # hash lengths
+    transcript_lengths = {}
+    for line in open(ref_gtf):
+        a = line.split('\t')
+        tid = gtf_kv(a[8])['transcript_id']
+        transcript_lengths[tid] = transcript_lengths.get(tid,0) + int(a[4]) - int(a[3]) + 1
+
+    # determine length boundaries
+    length_median = float(stats.median(transcript_lengths.values()))
+    if spread_lower:
+        length_spread_min = length_median / spread_lower
+    else:
+        length_spread_min = 0
+    if spread_upper:
+        length_spread_max = length_median * spread_upper
+    else:
+        length_spread_max = max(transcript_lengths.values())
+
+    if verbose:
+        print >> sys.stderr, 'Transcript length median:  %6d' % length_median
+        print >> sys.stderr, 'Transcript length min:     %6d' % length_spread_min
+        print >> sys.stderr, 'Transcript length max:     %6d' % length_spread_max
+
+    # remove too short and too long    
+    filter_out = open(filter_gtf, 'w')
+    for line in open(ref_gtf):
+        a = line.split('\t')
+        tid = gtf_kv(a[8])['transcript_id']
+        tlen = transcript_lengths.get(tid,0)
+        if length_spread_min <= tlen <= length_spread_max:
+            print >> filter_out, line,
+    filter_out.close()
 
 
 ################################################################################
