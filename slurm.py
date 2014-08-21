@@ -15,37 +15,66 @@ import os, sys, subprocess, tempfile, time
 def main():
     usage = 'usage: %prog [options] arg'
     parser = OptionParser(usage)
+    parser.add_option('-g', dest='go', default=False, action='store_true', help='Don\'t wait for the job to finish [Default: %default]')
+
     parser.add_option('-o', dest='out_file')
     parser.add_option('-e', dest='err_file')
+
+    parser.add_option('-J', dest='job_name')
+
     parser.add_option('-q', dest='queue', default='general')
-    parser.add_option('-c', dest='cpu', default=1, type='int')
-    parser.add_option('-m', dest='mem', default=None, type='int')    
+    parser.add_option('-n', dest='cpu', default=1, type='int')
+    parser.add_option('-m', dest='mem', default=None, type='int')
+    parser.add_option('-t', dest='time', default=None)
+
     (options,args) = parser.parse_args()
 
     cmd = args[0]
 
-    main_job = Job(cmd, out_file=options.out_file, err_file=options.err_file, queue=options.queue, cpu=options.cpu, mem=options.mem)
+    main_job = Job(cmd, job_name=options.job_name, out_file=options.out_file, err_file=options.err_file, queue=options.queue, cpu=options.cpu, mem=options.mem, time=options.time)
     main_job.launch()
 
-    time.sleep(10)
+    if options.go:
+        time.sleep(1)
 
-    while main_job.update_status() and main_job.status in ['PENDING','RUNNING']:
+        # find the job
+        if not main_job.update_status:
+            time.sleep(1)
+
+        # delete sbatch
+        main_job.clean()
+
+    else:
         time.sleep(10)
 
-    main_job.clean()
-    
+        # find the job
+        if not main_job.update_status:
+            time.sleep(10)
+
+        # wait for it to complete
+        while main_job.update_status() and main_job.status in ['PENDING','RUNNING']:
+            time.sleep(30)
+
+        print >> sys.stderr, '%s %s' % (main_job.job_name, main_job.status)
+
+        # delete sbatch
+        main_job.clean()
+
 
 class Job:
     ############################################################
     # __init__
     ############################################################
-    def __init__(self, cmd, out_file=None, err_file=None, queue='general', cpu=1, mem=None):
+    def __init__(self, cmd, job_name, out_file=None, err_file=None, queue='general', cpu=1, mem=None, time=None):
         self.cmd = cmd
+        self.job_name = job_name
         self.out_file = out_file
         self.err_file = err_file
         self.queue = queue
         self.cpu = cpu
         self.mem = mem
+        self.time = time
+
         self.id = None
         self.status = None
         self.sbatch_file = None
@@ -74,12 +103,16 @@ class Job:
         print >> sbatch_out, ''
         print >> sbatch_out, '#SBATCH -p %s' % self.queue
         print >> sbatch_out, '#SBATCH -n %d' % self.cpu
+        if self.job_name:
+            print >> sbatch_out, '#SBATCH -J %s' % self.job_name
         if self.out_file:
             print >> sbatch_out, '#SBATCH -o %s' % self.out_file
         if self.err_file:
             print >> sbatch_out, '#SBATCH -e %s' % self.err_file
         if self.mem:
-            print >> sbatch_out, '#SBATCH -mem %d' % self.mem
+            print >> sbatch_out, '#SBATCH --mem %d' % self.mem
+        if self.time:
+            print >> sbatch_out, '#SBATCH --time %s' % self.time
         print >> sbatch_out, ''
         print >> sbatch_out, self.cmd
 
@@ -95,25 +128,32 @@ class Job:
     ############################################################
     # update_status
     #
-    # Use 'sacct' tp update the job's status. Return True if
+    # Use 'sacct' to update the job's status. Return True if
     # found and False if not.
     ############################################################
     def update_status(self):
         status = None
 
-        sacct_str = subprocess.check_output('sacct', shell=True)
+        attempt = 0
+        while attempt < 3 and status == None:
+            if attempt > 0:
+                time.sleep(10)
 
-        sacct_lines = sacct_str.split('\n')
-        for line in sacct_lines[2:]:
-            a = line.split()
+            sacct_str = subprocess.check_output('sacct', shell=True)
 
-            try:
-                line_id = int(a[0])
-            except:
-                line_id = None
+            sacct_lines = sacct_str.split('\n')
+            for line in sacct_lines[2:]:
+                a = line.split()
 
-            if line_id == self.id:
-                status = a[5]
+                try:
+                    line_id = int(a[0])
+                except:
+                    line_id = None
+
+                if line_id == self.id:
+                    status = a[5]
+
+            attempt += 1
                 
         if status == None:
             return False
