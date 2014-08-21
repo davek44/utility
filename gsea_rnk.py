@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 from optparse import OptionParser
-import math
+import math, os
 
 ################################################################################
 # gsea_rnk.py
@@ -23,6 +23,9 @@ def main():
         parser.error('Must provide .diff')
     else:
         diff_file = args[0]
+
+    if not os.path.isdir(options.out_dir):
+        os.mkdir(options.out_dir)
 
     comparison_out = {}
 
