@@ -16,7 +16,6 @@ import os, subprocess, tempfile
 def main():
     usage = 'usage: %prog [options] <possum_index> <fire_signif>'
     parser = OptionParser(usage)
-    parser.add_option('-p', dest='pvalue', type='float', default=1e-4, help='Possum search p-value [Default: %default]')
     parser.add_option('-r', dest='robust', type='int', default=8, help='Minimum motif robustness score (out of 10) [Default: %default]')
     parser.add_option('-o', dest='possum_out', help='Keep the possum output file as this file name')
     (options,args) = parser.parse_args()
@@ -31,7 +30,7 @@ def main():
     motifs_pwm = read_motif_pwms(fire_signif, options.robust)
 
     # run possum
-    possum_fd, possum_file = run_possum(motifs_pwm, possum_index, options.pvalue, options.possum_out)
+    possum_fd, possum_file = run_possum(motifs_pwm, possum_index, options.possum_out)
 
     # convert output to gff
     possum2gff(possum_file)
@@ -86,7 +85,7 @@ def read_motif_pwms(fire_signif, min_robust):
 ################################################################################
 # run_possum
 ################################################################################
-def run_possum(motifs_pwm, possum_index, pval, possum_out):
+def run_possum(motifs_pwm, possum_index, possum_out):
     ############################################
     # print pwm's for possum
     pwm_fd, pwm_file = tempfile.mkstemp(dir='%s/research/scratch/temp' % os.environ['HOME'])
