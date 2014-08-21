@@ -109,7 +109,7 @@ def main():
         fragments.append(rep_fragments)
         te_fragments.append(rep_te_fragments)
 
-    if control_bam_files:        
+    if control_bam_files:
         control_fragments = []
         control_te_fragments = []
         for control_bam_file in control_bam_files:
