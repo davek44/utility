@@ -26,7 +26,7 @@ def main():
     usage = 'usage: %prog [options] <gtf> <diff>'
     parser = OptionParser(usage)
     parser.add_option('-o', dest='out_dir', default='te_diff_regress', help='Output directory to print regression summaries [Default: %default]')
-    parser.add_option('-t', dest='te_gff', default='%s/hg19.fa.out.tpf.gff'%os.environ['MASK'])
+    parser.add_option('-t', dest='te_gff', default='%s/hg19.fa.out.tp.gff'%os.environ['MASK'])
     (options,args) = parser.parse_args()
 
     if len(args) != 2:
