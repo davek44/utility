@@ -110,6 +110,73 @@ def hash_genes_repeats_nt(gtf_file, repeats_gff, gene_key='gene_id', add_star=Tr
 
 
 ################################################################################
+# hash_repeats_genes
+#
+# Hashr repeats in repeats_gff to sets of genes in gtf_file.
+################################################################################
+def hash_repeats_genes(gtf_file, repeats_gff, gene_key='gene_id', add_star=True, stranded=False):
+    repeat_genes = {}
+    if add_star:
+        repeat_genes[('*','*','+')] = set()
+        repeat_genes[('*','*','-')] = set()
+    else:
+        repeat_genes[('*','*')] = set()
+
+    for line in open(repeats_gff):
+        a = line.split('\t')
+        kv = gtf_kv(a[8])
+        
+        if stranded:
+            repeat_genes[(kv['repeat'],kv['family'],'+')] = set()
+            repeat_genes[(kv['repeat'],kv['family'],'-')] = set()
+            if add_star:
+                repeat_genes[('*',kv['family'],'+')] = set()
+                repeat_genes[('*',kv['family'],'-')] = set()
+        else:
+            repeat_genes[(kv['repeat'],kv['family'])] = set()
+            if add_star:
+                repeat_genes[('*',kv['family'])] = set()
+
+    
+    p = subprocess.Popen('intersectBed -wo -a %s -b %s' % (gtf_file, repeats_gff), shell=True, stdout=subprocess.PIPE)
+    line = p.stdout.readline()
+    while line:
+        a = line.split('\t')
+
+        # get names
+        gene_id = gtf_kv(a[8])[gene_key]
+        rep_kv = gtf_kv(a[17])
+        rep = rep_kv['repeat']
+        fam = rep_kv['family']
+
+        # get strands
+        gene_strand = a[6]
+        te_strand = a[15]
+
+        if stranded:
+            if gene_strand == te_strand:
+                orient = '+'
+            else:
+                orient = '-'
+
+            repeat_genes[(rep,fam,orient)].add(gene_id)
+            if add_star:
+                repeat_genes[('*',fam,orient)].add(gene_id)
+                repeat_genes[('*','*',orient)].add(gene_id)
+
+        else:
+            repeat_genes[(rep,fam)].add(gene_id)
+            if add_star:
+                repeat_genes[('*',fam)].add(gene_id)
+                repeat_genes[('*','*')].add(gene_id)
+
+        line = p.stdout.readline()
+    p.communicate()
+
+    return repeat_genes
+
+
+################################################################################
 # hash_repeat_family
 #
 # Hash repeat -> family from the RepeatMasker GFF.
