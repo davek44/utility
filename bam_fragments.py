@@ -98,7 +98,9 @@ def count_gff(bam_file, gff_file, filter_mapq=False):
 # count_gtf
 #
 # WARNING:
-#  I'm half assing by not considering strand information.
+#  -I'm half assing by not considering strand information.
+#  -Also, I'm skipping the -split -bed stuff because spliced reads overlapping
+#    genes are extemely likely to count anyway.
 ################################################################################
 def count_gtf(bam_file, ref_gtf, filter_mapq=False):
     ref_bam_fd, ref_bam_file = tempfile.mkstemp(dir='%s/research/scratch/temp' % os.environ['HOME'])
