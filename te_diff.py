@@ -21,6 +21,7 @@ import cuffdiff, fdr, gff, ggplot, math, stats, te
 def main():
     usage = 'usage: %prog [options] <gtf> <diff>'
     parser = OptionParser(usage)
+    parser.add_option('-m', dest='max_stat', default=None, type='float', help='Maximum stat for plotting [Default: %default]')
     parser.add_option('-o', dest='out_dir', default='te_diff', help='Output directory [Default: %default]')
     parser.add_option('-t', dest='te_gff', default='%s/hg19.fa.out.tp.gff'%os.environ['MASK'])
 
@@ -61,7 +62,7 @@ def main():
     ##################################################
     # hash genes -> RIP diff
     ##################################################
-    gene_diff = cuffdiff.hash_diff(diff_file, stat='fold', max_stat=5, sample_first='input')
+    gene_diff = cuffdiff.hash_diff(diff_file, stat='fold', max_stat=options.max_stat, sample_first='input')
 
     ##################################################
     # compute stats and make plots
