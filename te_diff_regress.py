@@ -7,7 +7,7 @@ import pandas as pd
 
 import statsmodels.formula.api as smf
 
-import fdr, te
+import cuffdiff, fdr, gff, te
 
 ################################################################################
 # te_diff_regress.py
@@ -27,24 +27,41 @@ def main():
     parser = OptionParser(usage)
     parser.add_option('-o', dest='out_dir', default='te_diff_regress', help='Output directory to print regression summaries [Default: %default]')
     parser.add_option('-t', dest='te_gff', default='%s/hg19.fa.out.tp.gff'%os.environ['MASK'])
+
+    parser.add_option('-s', dest='spread_factor', default=None, type='float', help='Allow multiplicative factor between the shortest and longest transcripts, used to filter [Default: %default]')
+    parser.add_option('-l', dest='spread_lower', default=None, type='float', help='Allow multiplicative factor between median and shortest transcripts [Defafult: %default]')
+    parser.add_option('-u', dest='spread_upper', default=None, type='float', help='Allow multiplicative factor between median and longest transcripts [Defafult: %default]')
+
     (options,args) = parser.parse_args()
 
     if len(args) != 2:
         parser.error('Must provide .gtf and .diff files')
     else:
-        gtf_file = args[0]
+        ref_gtf = args[0]
         diff_file = args[1]
-
-    # hash genes -> TEs
-    gene_tes = te.hash_genes_repeats(gtf_file, options.te_gff, gene_key='transcript_id', add_star=True, stranded=True)
-
-    # hash diffs stats
-    gene_diffs = hash_diff(diff_file)
 
     # clean output directory
     if os.path.isdir(options.out_dir):
         shutil.rmtree(options.out_dir)
     os.mkdir(options.out_dir)
+
+    if options.spread_factor or options.spread_lower or options.spread_upper:
+        # filter for similar length
+
+        if options.spread_factor:
+            options.spread_lower = math.sqrt(options.spread_factor)
+            options.spread_upper = math.sqrt(options.spread_factor)
+
+        spread_gtf = '%s/spread_factor.gtf' % options.out_dir
+        gff.length_filter(ref_gtf, spread_gtf, options.spread_lower, options.spread_lower, verbose=True)
+
+        ref_gtf = spread_gtf
+
+    # hash genes -> TEs
+    gene_tes = te.hash_genes_repeats(ref_gtf, options.te_gff, gene_key='transcript_id', add_star=True, stranded=True)
+
+    # hash diffs stats
+    gene_diffs = cuffdiff.hash_diff(diff_file, stat='fold', max_stat=5, sample_first='input')
 
     table_lines = []
     pvals = []
@@ -98,49 +115,8 @@ def main():
     table_out.close()
 
 
-################################################################################
-# hash_diff
-################################################################################
-def hash_diff(diff_file):
-    gene_stats = {}
-
-    # read diff file
-    diff_in = open(diff_file)
-    headers = diff_in.readline()
-    line = diff_in.readline()
-    while line:
-        a = line.split('\t')
-
-        gene_id = a[0]
-        sample1 = a[4]
-        sample2 = a[5]
-        status = a[6]
-        fpkm1 = float(a[7])
-        fpkm2 = float(a[8])
-        fold = float(a[9])
-        tstat = float(a[10])
-        sig = a[-1].rstrip()
-
-        if sample2 == 'input':
-            sample1, sample2 = sample2, sample1
-            fpkm1, fpkm2 = fpkm2, fpkm1
-            fold *= -1
-            tstat *= -1
-
-        # cap fold/tstat
-        fold = min(fold, 6)
-        fold = max(fold, -6)
-        tstat = min(tstat, 6)
-        tstat = max(tstat, -6)
-
-        if status == 'OK' and not math.isnan(tstat):
-            #gene_stats.setdefault((sample1,sample2),{})[gene_id] = tstat
-            gene_stats.setdefault((sample1,sample2),{})[gene_id] = fold
-
-        line = diff_in.readline()
-    diff_in.close()
-
-    return gene_stats
+    if options.spread_factor or options.spread_lower or options.spread_upper:
+        os.remove(spread_gtf)
 
 
 ################################################################################
