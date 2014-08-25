@@ -18,6 +18,8 @@ def main():
     parser = OptionParser(usage)
     #parser.add_option('-d', dest='debug', default=False, action='store_true', help='Print debug output to read_counts.txt')
     parser.add_option('-g', dest='gff_file', help='Count fragments overlapping the GFF file')
+    parser.add_option('-m', dest='filter_mapq', default=False, action='store_true', help='Filter out mapq=0 alignments [Default: %default]')
+    parser.add_option('-t', dest='gtf_file', help='Count fragments overlapping the GTF file')
     (options,args) = parser.parse_args()
 
     if len(args) != 1:
@@ -26,7 +28,9 @@ def main():
         bam_file = args[0]
 
     if options.gff_file:
-        print count_gff(bam_file, options.gff_file)
+        print count_gff(bam_file, options.gff_file, options.filter_mapq)
+    elif options.gtf_file:
+        print count_gtf(bam_file, options.gtf_file, options.filter_mapq)
     else:
         print count(bam_file)
 
@@ -82,7 +86,7 @@ def count_gff(bam_file, gff_file, filter_mapq=False):
 
     # intersect and count
     bam_count = 0.0
-    p = subprocess.Popen('intersectBed -split -wo -bed -abam %s -b %s' % (bam_file,gff_file), shell=True, stdout=subprocess.PIPE)
+    p = subprocess.Popen('intersectBed -split -u -bed -abam %s -b %s' % (bam_file,gff_file), shell=True, stdout=subprocess.PIPE)
     for line in p.stdout:
         a = line.split('\t')
         if is_paired:
