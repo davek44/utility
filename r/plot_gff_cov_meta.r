@@ -48,7 +48,7 @@ if (ncol(df) > 2) {
     }
 
     ggplot(df, aes(x=Index, y=Coverage.Norm, color=Type)) +
-        scale_color_manual("", values=c("#F46D43", "#66BD63"), breaks=c("Primary","Control"), labels=c(label.primary, label.control))
+        scale_color_manual("", values=c("#F46D43", "#66BD63"), breaks=c("Primary","Control"), labels=c(label.primary, label.control)) +
         geom_point() +
         scale_y_continuous("Normalized coverage") +
         theme_bw() +
