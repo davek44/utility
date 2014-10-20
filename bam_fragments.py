@@ -37,16 +37,27 @@ def main():
 
 ################################################################################
 # count
+#
+# Note: segemehl writes NH as the total possible alignments.
 ################################################################################
 def count(bam_file, filter_mapq=False):
+    bam_in = pysam.Samfile(bam_file, 'rb')
+
+    # segemehl
+    aligner = bam_in.header['PG'][0]['ID']
+    if aligner[-8:] == 'segemehl':
+        multimap_max = segemehl_multimap_max(bam_in)
+
     # initialize
     bam_count = 0.0
 
     # process
-    for aligned_read in pysam.Samfile(bam_file, 'rb'):
+    for aligned_read in bam_in:
         if filter_mapq == False or aligned_read.mapq > 0:
             try:
                 nh_tag = aligned_read.opt('NH')
+                #if aligner == 'segemehl':
+                #    nh_tag = min(nh_tag, multimap_max)
             except:
                 nh_tag = 1
 
@@ -67,12 +78,23 @@ def count(bam_file, filter_mapq=False):
 #       gff entries in between their aligned segments.
 ################################################################################
 def count_gff(bam_file, gff_file, filter_mapq=False):
+    bam_in = pysam.Samfile(bam_file, 'rb')
+
+    # segemehl
+    aligner = bam_in.header['PG'][0]['ID']
+    if aligner[-8:] == 'segemehl':
+        multimap_max = segemehl_multimap_max(bam_in)
+
     # hash multi-mappers
     multi_maps = {}
     paired_poll = {False:0, True:0}
-    for aligned_read in pysam.Samfile(bam_file, 'rb'):
+    for aligned_read in bam_in:
         if aligned_read.opt('NH') > 1:
-            multi_maps[aligned_read.qname] = aligned_read.opt('NH')
+            nh_tag = aligned_read.opt('NH')
+            if aligner == 'segemehl':
+                multi_maps[aligned_read.qname] = min(nh_tag, multimap_max)
+            else:
+                multi_maps[aligned_read.qname] = nh_tag
 
         paired_poll[aligned_read.is_paired] += 1
 
@@ -120,6 +142,36 @@ def count_gtf(bam_file, ref_gtf, filter_mapq=False):
     os.remove(ref_bam_file)
 
     return bam_count
+
+
+################################################################################
+# segemehl_multimap_max
+#
+# Grab the -r multimap max parameter from a segemehl alignment command.
+################################################################################
+def segemehl_multimap_max(bam_in):
+    align_cmd = bam_in.header['PG'][0]['CL']
+    optr_i = align_cmd.find('-r')
+
+    if optr_i == -1:
+        # what's the default?
+        multimap_max = 20
+    else:            
+        optr_start = optr_i+2
+
+        # get past possible initial spaces
+        optr_end = optr_start
+        while align_cmd[optr_end] == ' ':
+            optr_end += 1
+
+        # find the end of the number
+        while align_cmd[optr_end].isdigit():
+            optr_end += 1
+
+        # grab the number
+        multimap_max = int(align_cmd[optr_start:optr_end])
+
+    return multimap_max
 
 
 ################################################################################
