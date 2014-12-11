@@ -19,7 +19,7 @@ def main():
     parser.add_option('-a', dest='annotations', default='rrna,smallrna,cds,utrs_3p,utrs_5p,pseudogene,lncrna,introns,intergenic', help='Comma-separated list of annotation classes to include [Default: %default]')
     parser.add_option('-o', dest='output_prefix', default='annotation', help='Output file prefix [Default: %default]')
     parser.add_option('-p', dest='paired_stranded', action='store_true', default=False, help='Paired end stranded reads, so split intersects by XS tag and strand [Default: %default]')
-    parser.add_option('-t', dest='title', default='Title', help='Plot title [Default: %default]')
+    parser.add_option('-t', dest='title', default='', help='Plot title [Default: %default]')
     parser.add_option('-u', dest='unstranded', action='store_true', default=False, help='Unstranded reads, so count intergenic and renormalize to lessen the impact of double counting [Default: %default]')
     (options,args) = parser.parse_args()
 
@@ -105,7 +105,7 @@ def main():
     ############################################
     # table
     ############################################
-    annotation_labels = {'rrna':'rRNA', 'smallrna':'smallRNA', 'cds':'CDS', 'utrs_3p':'3\'UTR', 'utrs_5p':'5\'UTR', 'pseudogene':'Pseudogene', 'lncrna':'lncRNA', 'introns':'Introns', 'intergenic':'Intergenic', 'mrna':'mRNA'}
+    annotation_labels = {'rrna':'rRNA', 'smallrna':'smallRNA', 'cds':'CDS', 'utrs_3p':'3\'UTR', 'utrs_5p':'5\'UTR', 'pseudogene':'Pseudogene', 'lncrna':'lncRNA', 'exons':'Exons', 'introns':'Introns', 'intergenic':'Intergenic', 'mrna':'mRNA'}
 
     reads_sum = float(sum(annotation_reads.values()))
     lengths_sum = float(sum(annotation_lengths.values()))
@@ -135,7 +135,8 @@ def main():
         pie_df['annotation'].append(annotation_labels[ann])
         pie_df['count'].append(annotation_reads[ann])
 
-    ggplot.plot('%s/annotation_pie_pie.r'%os.environ['RDIR'], pie_df, [options.title, '%s_pie.pdf'%options.output_prefix])
+    out_pdf = '%s_pie.pdf' % options.output_prefix
+    ggplot.plot('%s/annotation_pie_pie.r'%os.environ['RDIR'], pie_df, [options.title, out_pdf], df_file=out_pdf[:-1])
 
     ############################################
     # read:length ratio
