@@ -12,7 +12,7 @@ import os, subprocess, sys, tempfile
 ################################################################################
 # plot
 ################################################################################
-def plot(r_script, df_dict, args, df_file=None):
+def plot(r_script, df_dict, args, df_file=None, print_cmd=False):
     # open temp file
     if df_file == None:
         df_fd, df_file = tempfile.mkstemp()
@@ -40,7 +40,12 @@ def plot(r_script, df_dict, args, df_file=None):
     args_str = ' '.join([str(a) for a in args])
 
     # plot in R
-    subprocess.call('R --slave --args %s %s < %s' % (df_file, args_str, r_script), shell=True)
+    cmd = 'R --slave --args %s %s < %s' % (df_file, args_str, r_script)
+
+    if print_cmd:
+        print >> sys.stderr, cmd
+        
+    subprocess.call(cmd, shell=True)
 
     # clean
     if df_fd != None:
