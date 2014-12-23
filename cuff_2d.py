@@ -77,7 +77,7 @@ def main():
     elif options.method.lower() in ['iso','isomap']:
         model = Isomap(n_components=2)
     elif options.method.lower() == 'ica':
-        model = FastICA(n_components=2)
+        model = FastICA(n_components=2, max_iter=500)
     else:
         model = PCA(n_components=2)
     
