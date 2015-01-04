@@ -4,8 +4,9 @@ library(plyr)
 ca = commandArgs(trailing=T)
 df.file = ca[1]
 out.pre = ca[2]
-label.primary = ca[3]
-label.control = ca[4]
+smooth.span = as.numeric(ca[3])
+label.primary = ca[4]
+label.control = ca[5]
 
 df = read.table(df.file, header=T, quote="\"")
 
@@ -21,11 +22,10 @@ if (ncol(df) == 2) {
 
 gp +
     geom_point() +
+    stat_smooth(method="loess", span=smooth.span) +
     theme_bw() +
-    theme(text=element_text(size=18)) +
+    theme(text=element_text(size=20)) +
     theme(legend.justification=c(1,0), legend.position=c(1,0))
-
-#     geom_smooth(span=0.1) +
 
 ggsave(paste(out.pre,"_raw.pdf",sep=""))
 
@@ -50,13 +50,13 @@ if (ncol(df) > 2) {
     ggplot(df, aes(x=Index, y=Coverage.Norm, color=Type)) +
         scale_color_manual("", values=c("#F46D43", "#66BD63"), breaks=c("Primary","Control"), labels=c(label.primary, label.control)) +
         geom_point() +
+        stat_smooth(method="loess", span=smooth.span) +
         scale_y_continuous("Normalized coverage") +
         theme_bw() +
-        theme(text=element_text(size=18)) +
+        theme(text=element_text(size=20)) +
         theme(legend.justification=c(1,0), legend.position=c(1,0))
 
 # scale_color_brewer(palette="Set1")
-# geom_smooth(span=0.1) +
 
     ggsave(paste(out.pre,"_norm.pdf",sep=""))
 }

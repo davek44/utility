@@ -35,6 +35,8 @@ def main():
     parser.add_option('-o', dest='output_pre', default='gff_cov', help='Output prefix [Default: %default]')
     parser.add_option('-s', dest='sorted_gene_files', help='Files of sorted gene lists. Plot heatmaps in their order')
 
+    parser.add_option('-p', dest='smooth_span', default=0.2, type='float', help='Smoothing span parameter [Default: %default]')
+
     parser.add_option('-b', dest='bins', default=100, type='int', help='Number of bins across the gene span [Default: %default]')
     parser.add_option('-m', dest='min_length', default=None, type='int', help='Minimum anchor length [Default: %default]')
 
@@ -198,7 +200,7 @@ def main():
 
     r_script = '%s/plot_gff_cov_meta.r' % os.environ['RDIR']
     out_df = '%s_meta.df' % options.output_pre
-    ggplot.plot(r_script, df, [options.output_pre, plot_labels[0], plot_labels[1]], df_file=out_df)
+    ggplot.plot(r_script, df, [options.output_pre, options.smooth_span, plot_labels[0], plot_labels[1]], df_file=out_df)
 
 
 ################################################################################
@@ -545,7 +547,9 @@ def preprocess_anchors(anchor_gff, mode, max_anchors, anchor_is_gtf, min_length,
                 a[3] = str(mid - window/2)
                 a[4] = str(mid + window/2)
                 a[-1] = a[-1].rstrip()
-                print >> prep_anchor_out, '\t'.join(a)
+
+                if int(a[3]) > 0:
+                    print >> prep_anchor_out, '\t'.join(a)
             else:
                 print >> sys.stderr, 'Unknown mode %s' % mode
                 exit(1)
