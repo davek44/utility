@@ -18,7 +18,7 @@ import gff
 def main():
     usage = 'usage: %prog [options] <ref_gtf> <prerna_gtf>'
     parser = OptionParser(usage)
-    parser.add_option('-m', dest='max_genes_overlapped', default=5, type='int', help='Don\'t include isoforms that overlap more than this many genes [Default: %default]')
+    parser.add_option('-m', dest='max_genes_overlapped', default=None, type='int', help='Don\'t include isoforms that overlap more than this many genes [Default: %default]')
     (options,args) = parser.parse_args()
 
     if len(args) != 2:
@@ -64,7 +64,7 @@ def main():
 
     prerna_out.close()
 
-    if options.max_genes_overlapped > 0:
+    if options.max_genes_overlapped != None:
         # intersect with self and compute overlap sets
         p = subprocess.Popen('intersectBed -wo -s -a %s -b %s' % (prerna_gtf, prerna_gtf), shell=True, stdout=subprocess.PIPE)
 
