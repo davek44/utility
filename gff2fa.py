@@ -72,9 +72,14 @@ def header_gff(header, seq, gff_file, options):
         a = line.split('\t')
         a[-1] = a[-1].rstrip()
         if (not options.exon or a[2] == 'exon') and a[0] == header:
-            kv = gff.gtf_kv(a[8])
-            #head_id = kv.get(options.header_key,a[8]+'_'+a[0]+':'+a[3]+'-'+a[4])
-            head_id = kv.get(options.header_key,a[8])
+            try:
+                kv = gff.gtf_kv(a[8])
+            except:
+                kv = {}
+
+            head_id = kv.get(options.header_key,a[8]+'_'+a[0]+':'+a[3]+'-'+a[4])
+            #head_id = kv.get(options.header_key,a[8])
+
             if options.gene_too:
                 head_id += ' gene=%s' % kv.get('gene_id','')
 
