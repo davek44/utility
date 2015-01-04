@@ -48,7 +48,7 @@ def main():
         time.sleep(10)
 
         # find the job
-        if not main_job.update_status:
+        if not main_job.update_status():
             time.sleep(10)
 
         # wait for it to complete
@@ -59,6 +59,117 @@ def main():
 
         # delete sbatch
         main_job.clean()
+
+
+################################################################################
+# multi_run
+#
+#
+# Launch and manage multiple SLURM jobs in parallel, using only one 'sacct'
+# call per 
+################################################################################
+def multi_run(jobs, max_proc=None, verbose=False):
+    total = len(jobs)
+    finished = 0
+    running = 0
+    active_jobs = []
+
+
+    while finished + running < total:
+        # launch jobs up to the max
+        while running < max_proc and finished+running < total:            
+            # launch
+            jobs[finished+running].launch()
+            if verbose:
+                print >> sys.stderr, jobs[finished+running].job_name, jobs[finished+running].cmd
+
+            # find it
+            time.sleep(5)
+            if not jobs[finished+running].update_status():
+                time.sleep(10)
+
+            # save it
+            active_jobs.append(jobs[finished+running])
+            running += 1
+
+        # sleep
+        time.sleep(30)
+
+        # update all statuses
+        multi_update_status(active_jobs)
+
+        # update active jobs
+        active_jobs_new = []
+        for i in range(len(active_jobs)):
+            if active_jobs[i].status in ['PENDING', 'RUNNING']:
+                active_jobs_new.append(active_jobs[i])
+            else:
+                if verbose:
+                    print >> sys.stderr, '%s %s' % (active_jobs[i].job_name, active_jobs[i].status)
+
+                running -= 1
+                finished += 1
+
+        active_jobs = active_jobs_new
+
+
+    # wait for all to finish
+    while active_jobs:
+        # sleep
+        time.sleep(30)
+
+        # update all statuses
+        multi_update_status(active_jobs)
+
+        # update active jobs
+        active_jobs_new = []
+        for i in range(len(active_jobs)):
+            if active_jobs[i].status in ['PENDING', 'RUNNING']:
+                active_jobs_new.append(active_jobs[i])
+            else:
+                if verbose:
+                    print >> sys.stderr, '%s %s' % (active_jobs[i].job_name, active_jobs[i].status)
+
+                running -= 1
+                finished += 1
+
+        active_jobs = active_jobs_new        
+
+
+################################################################################
+# multi_update_status
+#
+# Update the status for multiple jobs at once.
+################################################################################
+def multi_update_status(jobs):
+    # reset all
+    for j in jobs:
+        j.status = None
+
+    # try multiple times because sometimes it fails
+    attempt = 0
+    while attempt < 3 and [j for j in jobs if j.status == None]:
+        if attempt > 0:
+            time.sleep(10)
+
+        sacct_str = subprocess.check_output('sacct', shell=True)
+
+        # split into job lines
+        sacct_lines = sacct_str.split('\n')
+        for line in sacct_lines[2:]:
+            a = line.split()
+
+            try:
+                line_id = int(a[0])
+            except:
+                line_id = None
+
+            # check call jobs for a match
+            for j in jobs:
+                if line_id == j.id:
+                    j.status = a[5]
+
+        attempt += 1
 
 
 class Job:
