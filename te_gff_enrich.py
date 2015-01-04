@@ -145,7 +145,7 @@ def main():
         p_vals.append(p_val)
 
         cols = (rep, fam, te_len, te_count, exp_count, fold_change, p_val)
-        lines.append('%-18s %-18s %8d %8d %8.1f %8.2f %10.2e' % cols)
+        lines.append('%-18s %-18s %9d %8d %8.1f %8.2f %10.2e' % cols)
 
     # correct for multiple hypotheses correction
     q_vals = fdr.ben_hoch(p_vals)
