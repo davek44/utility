@@ -5,7 +5,7 @@ import os, pdb, shutil, subprocess
 import cuffdiff, fdr, gff, ggplot, math, stats, te
 
 ################################################################################
-# te_cuffdiff.py
+# te_diff.py
 #
 # Compute stats and plot differential expression fold changes for genes
 # w/ and w/o each TE family.
@@ -23,6 +23,7 @@ def main():
     parser = OptionParser(usage)
     parser.add_option('-m', dest='max_stat', default=None, type='float', help='Maximum stat for plotting [Default: %default]')
     parser.add_option('-o', dest='out_dir', default='te_diff', help='Output directory [Default: %default]')
+    parser.add_option('-c', dest='scale', default=1, type='float', help='CDF plot scale [Default: %default]')
     parser.add_option('-t', dest='te_gff', default='%s/hg19.fa.out.tp.gff'%os.environ['MASK'])
 
     parser.add_option('-s', dest='spread_factor', default=None, type='float', help='Allow multiplicative factor between the shortest and longest transcripts, used to filter [Default: %default]')
@@ -67,7 +68,7 @@ def main():
     ##################################################
     # compute stats and make plots
     ##################################################
-    table_lines, pvals = compute_stats(te_genes, gene_diff, ref_gtf, options.out_dir)
+    table_lines, pvals = compute_stats(te_genes, gene_diff, ref_gtf, options.out_dir, options.scale)
 
     # perform multiple hypothesis correction
     qvals = fdr.ben_hoch(pvals)
@@ -90,7 +91,7 @@ def main():
 #  note_diffs:
 #  out_pdf:
 ################################################################################
-def cdf_plot(te_key, te_diffs, note_diffs, out_pdf):
+def cdf_plot(te_key, te_diffs, note_diffs, out_pdf, scale):
     rep, fam, orient = te_key
 
     # name plot
@@ -108,7 +109,7 @@ def cdf_plot(te_key, te_diffs, note_diffs, out_pdf):
     df['diff'] = note_diffs + te_diffs
     df['class'] = ['d%s' % label]*len(note_diffs) + [label]*len(te_diffs)
 
-    ggplot.plot('%s/te_diff.r' % os.environ['RDIR'], df, [out_pdf])
+    ggplot.plot('%s/te_diff.r' % os.environ['RDIR'], df, [out_pdf, scale])
 
 
 ################################################################################
@@ -124,7 +125,7 @@ def cdf_plot(te_key, te_diffs, note_diffs, out_pdf):
 #  table_lines:
 #  pvals:
 ################################################################################
-def compute_stats(te_genes, gene_diff, ref_gtf, plot_dir):
+def compute_stats(te_genes, gene_diff, ref_gtf, plot_dir, scale):
     # focus on GTF genes
     gtf_genes = set()
     for line in open(ref_gtf):
@@ -163,8 +164,10 @@ def compute_stats(te_genes, gene_diff, ref_gtf, plot_dir):
 
                 # plot ...
                 if repeat in ['*'] and family in ['*','LINE/L1','SINE/Alu','LTR/ERV1','LTR/ERVL-MaLR','LINE/L2','LTR/ERVL','SINE/MIR','DNA/hAT-Charlie','LTR/ERVK','DNA/TcMar-Tigger']:
-                    out_pdf = '%s/%s_%s_%s_%s-%s.pdf' % (plot_dir, repeat.replace('/','-'), family.replace('/','-'), orient, sample1, sample2)
-                    cdf_plot(te_key, te_diffs, note_diffs, out_pdf)
+                    repeat_plot = repeat.replace('/','-').replace('*','X')
+                    family_plot = family.replace('/','-').replace('*','X')
+                    out_pdf = '%s/%s_%s_%s_%s-%s.pdf' % (plot_dir, repeat_plot, family_plot, orient, sample1, sample2)
+                    cdf_plot(te_key, te_diffs, note_diffs, out_pdf, scale)
 
     return table_lines, pvals
 
