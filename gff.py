@@ -248,12 +248,8 @@ def length_filter(ref_gtf, filter_gtf, spread_lower, spread_upper, verbose=False
     else:
         length_spread_max = max(transcript_lengths.values())
 
-    if verbose:
-        print >> sys.stderr, 'Transcript length median:  %6d' % length_median
-        print >> sys.stderr, 'Transcript length min:     %6d' % length_spread_min
-        print >> sys.stderr, 'Transcript length max:     %6d' % length_spread_max
-
-    # remove too short and too long    
+    # remove too short and too long
+    transcripts_kept = set()
     filter_out = open(filter_gtf, 'w')
     for line in open(ref_gtf):
         a = line.split('\t')
@@ -261,7 +257,14 @@ def length_filter(ref_gtf, filter_gtf, spread_lower, spread_upper, verbose=False
         tlen = transcript_lengths.get(tid,0)
         if length_spread_min <= tlen <= length_spread_max:
             print >> filter_out, line,
+            transcripts_kept.add(tid)
     filter_out.close()
+
+    if verbose:
+        print >> sys.stderr, 'Transcript length median:  %6d' % length_median
+        print >> sys.stderr, 'Transcript length min:     %6d' % length_spread_min
+        print >> sys.stderr, 'Transcript length max:     %6d' % length_spread_max
+        print >> sys.stderr, '%6d of %6d (%.3f) transcripts used.' % (len(transcripts_kept), len(transcript_lengths), len(transcripts_kept)/float(len(transcript_lengths)))
 
 
 ################################################################################
