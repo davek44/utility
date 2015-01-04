@@ -31,7 +31,7 @@ def hash_genes_repeats(gtf_file, repeats_gff, gene_key='gene_id', add_star=True,
         a = line.split('\t')
         gene_id = gtf_kv(a[8])[gene_key]
         gene_repeats[gene_id] = set()
-    
+
     p = subprocess.Popen('intersectBed -wo -a %s -b %s' % (gtf_file, repeats_gff), shell=True, stdout=subprocess.PIPE)
     line = p.stdout.readline()
     while line:
@@ -78,7 +78,7 @@ def hash_genes_repeats(gtf_file, repeats_gff, gene_key='gene_id', add_star=True,
 # Warnings:
 #  -If we hash by gene_id, we want to have chosen a single isoform per gene.
 ################################################################################
-def hash_genes_repeats_nt(gtf_file, repeats_gff, gene_key='gene_id', add_star=True):
+def hash_genes_repeats_nt(gtf_file, repeats_gff, gene_key='gene_id', add_star=True, stranded=False):
     gene_repeat_nt = {}
 
     p = subprocess.Popen('intersectBed -wo -a %s -b %s' % (gtf_file, repeats_gff), shell=True, stdout=subprocess.PIPE)
@@ -87,7 +87,7 @@ def hash_genes_repeats_nt(gtf_file, repeats_gff, gene_key='gene_id', add_star=Tr
         a = line.split('\t')
 
         # get names
-        gene_id = gtf_kv(a[8])['gene_id']
+        gene_id = gtf_kv(a[8])[gene_key]
         rep_kv = gtf_kv(a[17])
         rep = rep_kv['repeat']
         fam = rep_kv['family']
@@ -95,18 +95,127 @@ def hash_genes_repeats_nt(gtf_file, repeats_gff, gene_key='gene_id', add_star=Tr
         # get overlap
         nt_overlap = int(a[18])
 
-        if not gene_id in gene_repeat_nt:
-            gene_repeat_nt[gene_id] = {}
+        # get strands
+        gene_strand = a[6]
+        te_strand = a[15]
 
-        gene_repeat_nt[gene_id][(rep,fam)] = gene_repeat_nt[gene_id].get((rep,fam),0) + nt_overlap
-        if add_star:
-            gene_repeat_nt[gene_id][('*',fam)] = gene_repeat_nt[gene_id].get(('*',fam),0) + nt_overlap
-            gene_repeat_nt[gene_id][('*','*')] = gene_repeat_nt[gene_id].get(('*','*'),0) + nt_overlap
+        if stranded:
+            if gene_strand == te_strand:
+                orient = '+'
+            else:
+                orient = '-'
+
+            if not gene_id in gene_repeat_nt:
+                gene_repeat_nt[gene_id] = {}
+
+            gene_repeat_nt[gene_id][(rep,fam,orient)] = gene_repeat_nt[gene_id].get((rep,fam,orient),0) + nt_overlap
+            if add_star:
+                gene_repeat_nt[gene_id][('*',fam,orient)] = gene_repeat_nt[gene_id].get(('*',fam,orient),0) + nt_overlap
+                gene_repeat_nt[gene_id][('*','*',orient)] = gene_repeat_nt[gene_id].get(('*','*',orient),0) + nt_overlap
+
+        else:
+            if not gene_id in gene_repeat_nt:
+                gene_repeat_nt[gene_id] = {}
+
+            gene_repeat_nt[gene_id][(rep,fam)] = gene_repeat_nt[gene_id].get((rep,fam),0) + nt_overlap
+            if add_star:
+                gene_repeat_nt[gene_id][('*',fam)] = gene_repeat_nt[gene_id].get(('*',fam),0) + nt_overlap
+                gene_repeat_nt[gene_id][('*','*')] = gene_repeat_nt[gene_id].get(('*','*'),0) + nt_overlap
 
         line = p.stdout.readline()
     p.communicate()
 
     return gene_repeat_nt
+
+
+################################################################################
+# hash_genes_repeats_num
+#
+# Hash genes in gtf_file to a dict mapping repeats in repeats_gff to the number
+# of repeat instances overlapped by that gene.
+#
+# This is tricky because if I count each overlap, I will overestimate for
+# broken fragments of a single insertion. Instead, I'm normalizing overlapped
+# nt by the TE length. But that won't really do the right thing for 3' biased
+# L1 elements.
+#
+# Warnings:
+#  -If we hash by gene_id, we want to have chosen a single isoform per gene.
+################################################################################
+def hash_genes_repeats_num(gtf_file, repeats_gff, gene_key='gene_id', add_star=True, stranded=False):
+    gene_repeat_num = {}
+
+    p = subprocess.Popen('intersectBed -wo -a %s -b %s' % (gtf_file, repeats_gff), shell=True, stdout=subprocess.PIPE)
+    line = p.stdout.readline()
+    while line:
+        a = line.split('\t')
+
+        # get names
+        gene_id = gtf_kv(a[8])[gene_key]
+        rep_kv = gtf_kv(a[17])
+        rep = rep_kv['repeat']
+        fam = rep_kv['family']
+
+        # get strands
+        gene_strand = a[6]
+        te_strand = a[15]
+
+        if stranded:
+            if gene_strand == te_strand:
+                orient = '+'
+            else:
+                orient = '-'
+
+            if not gene_id in gene_repeat_num:
+                gene_repeat_num[gene_id] = {}
+
+            gene_repeat_num[gene_id][(rep,fam,orient)] = gene_repeat_num[gene_id].get((rep,fam,orient),0) + 1
+            if add_star:
+                gene_repeat_num[gene_id][('*',fam,orient)] = gene_repeat_num[gene_id].get(('*',fam,orient),0) + 1
+                gene_repeat_num[gene_id][('*','*',orient)] = gene_repeat_num[gene_id].get(('*','*',orient),0) + 1
+
+        else:
+            if not gene_id in gene_repeat_num:
+                gene_repeat_num[gene_id] = {}
+
+            gene_repeat_num[gene_id][(rep,fam)] = gene_repeat_num[gene_id].get((rep,fam),0) + 1
+            if add_star:
+                gene_repeat_num[gene_id][('*',fam)] = gene_repeat_num[gene_id].get(('*',fam),0) + 1
+                gene_repeat_num[gene_id][('*','*')] = gene_repeat_num[gene_id].get(('*','*'),0) + 1
+
+        line = p.stdout.readline()
+    p.communicate()
+
+    return gene_repeat_num
+
+
+################################################################################
+# hash_genes_repeats_ntnum
+#
+# Hash genes in gtf_file to a dict mapping repeats in repeats_gff to the number
+# of repeat instances overlapped by that gene.
+#
+# This is tricky because if I count each overlap, I will overestimate for
+# broken fragments of a single insertion. Instead, I'm normalizing overlapped
+# nt by the TE length. But that won't really do the right thing for 3' biased
+# L1 elements.
+#
+# Warnings:
+#  -If we hash by gene_id, we want to have chosen a single isoform per gene.
+################################################################################
+def hash_genes_repeats_ntnum(gtf_file, repeats_gff, gene_key='gene_id', add_star=True, stranded=False):
+    # hash nt overlapped
+    gene_repeat_nt = hash_genes_repeats_nt(gtf_file, repeats_gff, gene_key=gene_key, add_star=add_star, stranded=stranded)
+
+    # determine repeat lengths
+    repeat_lengths = {}
+    
+    # normalize
+    gene_repeat_num = {}
+    for gene_id in gene_repeat_nt:
+        pass
+
+    return gene_repeat_num
 
 
 ################################################################################
