@@ -24,9 +24,12 @@ def main():
     parser = OptionParser(usage)
     parser.add_option('-c', dest='control_fpkm_file', help='Control FPKM tracking file')
     parser.add_option('-g', dest='ref_gtf', default='%s/gencode.v18.annotation.gtf'%os.environ['GENCODE'])
+    parser.add_option('--ggplot', dest='ggplot_script', default='%s/peaks_diff_compare.r'%os.environ['RDIR'], help='Script to make plots with [Default: %default]')
+    parser.add_option('-m', dest='max_stat', default=10, type='float', help='Max cuffdiff stat [Default: %default]')
     parser.add_option('-o', dest='output_pre', default='', help='Output prefix [Default: %default]')
     parser.add_option('-r', dest='rbp', default='RBP', help='RBP name [Default: %default]')
     parser.add_option('-s', dest='single_gene_loci', default=False, action='store_true', help='Only use single gene loci [Default: %default]')
+    parser.add_option('-t', dest='test_stat', default=False, action='store_true', help='Use test statistic rather than fold change [Default: %default]')
     parser.add_option('--sample1', dest='sample1', help='Sample_1 name in cuffdiff')
     parser.add_option('--sample2', dest='sample2', help='Sample_2 name in cuffdiff')
     (options,args) = parser.parse_args()
@@ -63,7 +66,10 @@ def main():
     ##################################################
     # collect RIP stats
     ##################################################
-    rip_fold, rip_bound = ripseq.hash_rip(diff_file, use_fold=True, one_rbp=True)
+    if options.test_stat:
+        rip_fold, rip_bound = ripseq.hash_rip(diff_file, use_fold=False, max_stat=options.max_stat, one_rbp=True)
+    else:
+        rip_fold, rip_bound = ripseq.hash_rip(diff_file, use_fold=True, max_stat=options.max_stat, one_rbp=True)
 
     ##################################################
     # plot bound and unbound distributions
@@ -79,8 +85,7 @@ def main():
             else:
                 df_dict['CLIP'].append('Unbound')
 
-    r_script = '%s/peaks_diff_compare.r' % os.environ['RDIR']
-    ggplot.plot(r_script, df_dict, [options.output_pre, options.rbp], df_file='%s_df.txt' % options.output_pre)
+    ggplot.plot(options.ggplot_script, df_dict, [options.output_pre, options.rbp], df_file='%s_df.txt' % options.output_pre)
 
     ##################################################
     # compute stats on bound and unbound distributions
