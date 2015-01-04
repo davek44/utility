@@ -84,7 +84,6 @@ def count_kmers(k, seq, all=False):
 
         # reverse
         kmer = rc_seq[i:i+k]
-        kmer = seq[i:i+k]
         if kmers.has_key(kmer):
             kmers[kmer] += 1
         else:
