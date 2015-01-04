@@ -2,7 +2,7 @@
 import numpy as np
 from scipy.stats import rankdata, tiecorrect
 from scipy.stats.distributions import norm
-import math, os, random, subprocess, tempfile
+import math, os, random, subprocess, sys, tempfile
 
 ################################################################################
 # stats.py
@@ -234,6 +234,7 @@ def min_i(lis):
 ############################################################
 def median(ls, null=None):
     if len(ls) == 0:
+        print >> sys.stderr, 'Cannot compute median of empty list'
         return null
     else:
         sls = sorted(ls)
