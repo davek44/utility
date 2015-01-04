@@ -27,6 +27,7 @@ def main():
     parser = OptionParser(usage)
     parser.add_option('-o', dest='out_dir', default='te_diff_regress', help='Output directory to print regression summaries [Default: %default]')
     parser.add_option('-t', dest='te_gff', default='%s/hg19.fa.out.tp.gff'%os.environ['MASK'])
+    parser.add_option('-m', dest='max_stat', default=None, type='float', help='Maximum stat for plotting [Default: %default]')
 
     parser.add_option('-s', dest='spread_factor', default=None, type='float', help='Allow multiplicative factor between the shortest and longest transcripts, used to filter [Default: %default]')
     parser.add_option('-l', dest='spread_lower', default=None, type='float', help='Allow multiplicative factor between median and shortest transcripts [Defafult: %default]')
@@ -61,7 +62,7 @@ def main():
     gene_tes = te.hash_genes_repeats(ref_gtf, options.te_gff, gene_key='transcript_id', add_star=True, stranded=True)
 
     # hash diffs stats
-    gene_diffs = cuffdiff.hash_diff(diff_file, stat='fold', max_stat=5, sample_first='input')
+    gene_diffs = cuffdiff.hash_diff(diff_file, stat='fold', max_stat=options.max_stat, sample_first='input')
 
     table_lines = []
     pvals = []
