@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import operator, os, subprocess, time
+import operator, os, sys, subprocess, time
 
 ############################################################
 # util
@@ -39,7 +39,7 @@ def exec_par(cmds, max_proc, print_cmd=False):
     if max_proc == 1:
         while finished < total:
             if print_cmd:
-                print cmds[finished]
+                print >> sys.stderr, cmds[finished]
             op = subprocess.Popen(cmds[finished], shell=True)
             os.waitpid(op.pid, 0)
             finished += 1
@@ -49,7 +49,7 @@ def exec_par(cmds, max_proc, print_cmd=False):
             # launch jobs up to max
             while running < max_proc and finished+running < total:
                 if print_cmd:
-                    print cmds[finished+running]
+                    print >> sys.stderr, cmds[finished+running]
                 p.append(subprocess.Popen(cmds[finished+running], shell=True))
                 #print 'Running %d' % p[running].pid
                 running += 1
