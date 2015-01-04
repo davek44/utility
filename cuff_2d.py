@@ -25,6 +25,7 @@ def main():
     parser.add_option('-m', dest='method', default='PCA', help='Dimension reduction method [Default: %default]')
     parser.add_option('-p', dest='pseudocount', default=.125, help='FPKM pseudocount (for logs) [Default: %default]')
     parser.add_option('-o', dest='out_pdf', default='cuff_2d.pdf', help='Output PDF [Default: %default]')
+    parser.add_option('-s', dest='square', default=False, action='store_true', help='Square plot [Default: %default]')
     parser.add_option('-u', dest='uppercase', default=False, action='store_true', help='Uppercase sample labels [Default: %default]')
     parser.add_option('-w', dest='whiten', default=False, action='store_true', help='Whiten expression data [Default: %default]')
     (options,args) = parser.parse_args()
@@ -90,9 +91,14 @@ def main():
     df['D1'] = X_dr[:,0]
     df['D2'] = X_dr[:,1]
     df['Label'] = ['%s_rep%s' % sam_rep for sam_rep in samples]
-    df['Sample'] = [sam for (sam,rep) in samples]
+     
+    if options.uppercase:
+        df['Label'] = [label.upper() for label in df['Label']]
+        df['Sample'] = [sam.upper() for (sam,rep) in samples]
+    else:
+        df['Sample'] = [sam for (sam,rep) in samples]
 
-    ggplot.plot('%s/cuff_2d.r' % os.environ['RDIR'], df, [options.out_pdf])
+    ggplot.plot('%s/cuff_2d.r' % os.environ['RDIR'], df, [options.out_pdf, options.square])
 
 
 ################################################################################
