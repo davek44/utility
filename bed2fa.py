@@ -19,8 +19,10 @@ import dna
 def main():
     usage = 'usage: %prog [options] <bed file>'
     parser = OptionParser(usage)
+    parser.add_option('-a', dest='add_coords_header', default=False, action='store_true', help='Add BED coordinates to the FASTA header [Default: %default]')
     parser.add_option('-c', dest='chr_dir', default='', help='Directory of chromosome files named according to the first column of the gff file')
     parser.add_option('-f', dest='fasta_file', default='%s/research/common/data/genomes/hg19/sequence/hg19.fa' % os.environ['HOME'], help='Fasta file [Default: %default]')
+    parser.add_option('-l', dest='length_match', default=None, type='int', help='Match all entries to be the same length [Default: %default]')
     (options,args) = parser.parse_args()
 
     if len(args) != 1:
@@ -71,6 +73,10 @@ def header_bed(header, seq, bed_file, options):
         if a[0] == header:
             feat_start = int(a[1])
             feat_end = int(a[2])
+            if options.length_match:
+                feat_mid = int(0.5*feat_start + 0.5*feat_end)
+                feat_start = feat_mid - options.length_match/2
+                feat_end = feat_mid + options.length_match/2
 
             feat_strand = '+'
             if len(a) > 5 and  a[5] == '-':
@@ -78,8 +84,9 @@ def header_bed(header, seq, bed_file, options):
 
             feat_header = ''
             if len(a) > 3 and a[3] != '.':
-                feat_header = a[3] + ':'
-            feat_header += '%s:%d-%d:%s' % (header,feat_start,feat_end,feat_strand)
+                feat_header = a[3]
+            if options.add_coords_header:
+                feat_header += ' %s:%d-%d:%s' % (header,feat_start,feat_end,feat_strand)
             
             if feat_strand == '+':
                 feat_seq = seq[feat_start:feat_end]
