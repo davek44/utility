@@ -82,11 +82,12 @@ def header_bed(header, seq, bed_file, options):
             if len(a) > 5 and  a[5] == '-':
                 feat_strand = '-'
 
-            feat_header = ''
-            if len(a) > 3 and a[3] != '.':
-                feat_header = a[3]
             if options.add_coords_header:
-                feat_header += ' %s:%d-%d:%s' % (header,feat_start,feat_end,feat_strand)
+                feat_header = '%s:%d-%d:%s' % (header,feat_start,feat_end,feat_strand)
+            else:
+                feat_header = ''
+                if len(a) > 3 and a[3] != '.':
+                    feat_header = a[3]
             
             if feat_strand == '+':
                 feat_seq = seq[feat_start:feat_end]
