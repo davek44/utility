@@ -388,7 +388,7 @@ def sample_probs(items, props, count=1):
         exit(1)
 
     if len(items) != len(props):
-        print >> sys.stderr, 'Items (%d) and proportions (%d) differ in length' % (len(items), len(proportions))
+        print >> sys.stderr, 'Items (%d) and proportions (%d) differ in length' % (len(items), len(props))
         exit(1)
 
     # compute cumulative probabilities
