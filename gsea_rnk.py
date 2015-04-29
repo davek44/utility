@@ -36,8 +36,8 @@ def main():
 
         gene_id = a[0]
         gene_name = a[2]
-        sample1 = a[4]
-        sample2 = a[5]
+        sample1 = a[4].replace('-','_')  # cmd line gsea cannot handle hyphens
+        sample2 = a[5].replace('-','_')
         status = a[6]
         fpkm1 = float(a[7])
         fpkm2 = float(a[8])
@@ -49,7 +49,7 @@ def main():
         if status == 'OK' and not math.isnan(tstat):
             if options.min_fpkm == None or fpkm1 > options.min_fpkm or fpkm2 > options.min_fpkm:
                 if not (sample1,sample2) in comparison_out:
-                    comparison_out[(sample1,sample2)] = open('%s/%s-%s.rnk' % (options.out_dir, sample1, sample2), 'w')
+                    comparison_out[(sample1,sample2)] = open('%s/%s_%s.rnk' % (options.out_dir, sample1, sample2), 'w')
 
                 print >> comparison_out[(sample1,sample2)], '%s\t%f' % (gene_name, fold_change)
 
