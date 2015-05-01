@@ -357,7 +357,7 @@ def quantile(ls, q):
     if type(q) == list:
         qval = []
         for j in range(len(q)):
-            qi = int(len(sls)*q[j])
+            qi = int((len(sls)-1)*q[j])
             qval.append(sls[qi])
     else:
         qi = int(len(sls)*q)
