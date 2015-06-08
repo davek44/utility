@@ -83,7 +83,7 @@ def header_bed(header, seq, bed_file, options):
                 feat_strand = '-'
 
             if options.add_coords_header:
-                feat_header = '%s:%d-%d:%s' % (header,feat_start,feat_end,feat_strand)
+                feat_header = '%s:%s-%s:%s' % (header,a[1],a[2],feat_strand)
             else:
                 feat_header = ''
                 if len(a) > 3 and a[3] != '.':
