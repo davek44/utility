@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from optparse import OptionParser
 import math
+import numpy as np
 
 ################################################################################
 # cuffdiff.py
@@ -145,7 +146,7 @@ def hash_sig(diff_file, sample_first=None):
 #  gene_diff:     Dict mapping gene_id to diff stat
 ################################################################################
 def hash_stat_one(diff_file, stat='fold', max_stat=None, min_fpkm=None, pseudocount=0.125, sample_first=None):
-    gene_diff = hash_diff(diff_file, stat, max_stat, min_fpkm, sample_first)
+    gene_diff = hash_stat(diff_file, stat, max_stat, min_fpkm, pseudocount, sample_first)
     if len(gene_diff.keys()) > 1:
         print >> sys.stderr, 'More than one pair of samples found in %s' % diff_file
         exit(1)
