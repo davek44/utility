@@ -120,12 +120,15 @@ def hash_sig(diff_file, sample_first=None):
             fold_change *= -1
             test_stat *= -1
 
+        if (sample1,sample2) not in gene_sig:
+            gene_sig[(sample1,sample2)] = {}
+
         if sig == 'yes':
             if test_stat > 0:
                 sig_val = 1
             else:
                 sig_val = -1
-            gene_sig.setdefault((sample1,sample2),{})[gene_id] = sig_val
+            gene_sig[(sample1,sample2)][gene_id] = sig_val
 
     diff_in.close()
 
