@@ -12,7 +12,7 @@ import os, subprocess, sys, tempfile
 ################################################################################
 # plot
 ################################################################################
-def plot(r_script, df_dict, args, df_file=None, print_cmd=False):
+def plot(r_script, df_dict, args, df_file=None, print_cmd=False, sep=' '):
     # open temp file
     if df_file == None:
         df_fd, df_file = tempfile.mkstemp()
@@ -22,7 +22,7 @@ def plot(r_script, df_dict, args, df_file=None, print_cmd=False):
 
     # get headers
     headers = sorted(df_dict.keys())
-    print >> df_out, ' '.join([str(head) for head in headers])
+    print >> df_out, sep.join([str(head) for head in headers])
 
     # check list lengths
     length = len(df_dict[headers[0]])
@@ -33,11 +33,11 @@ def plot(r_script, df_dict, args, df_file=None, print_cmd=False):
 
     # print data frame
     for i in range(length):
-        print >> df_out, ' '.join([str(df_dict[head][i]) for head in headers])
+        print >> df_out, sep.join([str(df_dict[head][i]) for head in headers])
     df_out.close()
 
     # convert args to one string
-    args_str = ' '.join([str(a) for a in args])
+    args_str = sep.join([str(a) for a in args])
 
     # plot in R
     cmd = 'R --slave --args %s %s < %s' % (df_file, args_str, r_script)
