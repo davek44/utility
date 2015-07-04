@@ -9,6 +9,8 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib_venn import venn2
 
+from scipy.stats import hypergeom
+
 ################################################################################
 # peaks_diff_compare.py
 #
@@ -22,7 +24,7 @@ from matplotlib_venn import venn2
 def main():
     usage = 'usage: %prog [options] <peaks gff> <diff>'
     parser = OptionParser(usage)
-    parser.add_option('-c', dest='control_fpkm_file', help='Control FPKM tracking file')
+    parser.add_option('-c', dest='clip_fpkm_file', help='Control FPKM tracking file')
     parser.add_option('-g', dest='ref_gtf', default='%s/gencode.v18.annotation.gtf'%os.environ['GENCODE'])
     parser.add_option('--ggplot', dest='ggplot_script', default='%s/peaks_diff_compare.r'%os.environ['RDIR'], help='Script to make plots with [Default: %default]')
     parser.add_option('-m', dest='max_stat', default=10, type='float', help='Max cuffdiff stat [Default: %default]')
@@ -60,16 +62,17 @@ def main():
 
     # find expressed genes in peak calls
     silent_genes = set()
-    if options.control_fpkm_file:
-        silent_genes = find_silent(options.control_fpkm_file)
+    if options.clip_fpkm_file:
+        silent_genes = find_silent(options.clip_fpkm_file)
 
     ##################################################
     # collect RIP stats
     ##################################################
     if options.test_stat:
-        rip_fold, rip_bound = ripseq.hash_rip(diff_file, use_fold=False, max_stat=options.max_stat, one_rbp=True)
+        rip_fold, rip_bound = ripseq.hash_rip(diff_file, just_ok = True, use_fold=False, max_stat=options.max_stat, one_rbp=True)
     else:
         rip_fold, rip_bound = ripseq.hash_rip(diff_file, use_fold=True, max_stat=options.max_stat, one_rbp=True)
+        rip_fold = ripseq.hash_rip_fold(diff_file, min_fpkm=0.125, max_fold=10, one_rbp=True)
 
     ##################################################
     # plot bound and unbound distributions
@@ -85,7 +88,7 @@ def main():
             else:
                 df_dict['CLIP'].append('Unbound')
 
-    ggplot.plot(options.ggplot_script, df_dict, [options.output_pre, options.rbp], df_file='%s_df.txt' % options.output_pre)
+    ggplot.plot(options.ggplot_script, df_dict, [options.output_pre, options.rbp, options.test_stat])
 
     ##################################################
     # compute stats on bound and unbound distributions
@@ -110,9 +113,28 @@ def main():
     rip_only = len(rip_genes - peak_genes)
     both = len(peak_genes & rip_genes)
 
+    if options.clip_fpkm_file:
+        print >> sys.stderr, 'Ignoring silent genes for hypergeometric test'
+
+    # k is x
+    # K is n
+    # N is M
+    # n is N
+    # hypergeom.sf(x, M, n, N, loc=0)
+
+    p1 = hypergeom.sf(both-1, len(gtf_genes), len(peak_genes), len(rip_genes))
+    p2 = hypergeom.sf(both-1, len(gtf_genes), len(rip_genes), len(peak_genes))
+
+    hyper_out = open('%s_hyper.txt' % options.output_pre, 'w')
+    cols = (p1, p2, both, clip_only, rip_only, len(peak_genes), len(rip_genes), len(gtf_genes))
+    print >> hyper_out, '%7.2e  %7.2e  %5d  %5d  %5d  %5d  %5d %5d' % cols
+    hyper_out.close()
+
     if clip_only > 0 and rip_only > 0:
         plt.figure()
-        venn_diag = venn2(subsets=(clip_only, rip_only, both), set_labels=['CLIP', 'RIP'], set_colors=['#e41a1c', '#377eb8'])
+        # venn_diag = venn2(subsets=(clip_only, rip_only, both), set_labels=['CLIP', 'fRIP'], set_colors=['#e41a1c', '#377eb8'])
+        # venn_diag = venn2(subsets=(clip_only, rip_only, both), set_labels=['CLIP', 'fRIP'], set_colors=['#e41a1c', '#1ae47d'])
+        venn_diag = venn2(subsets=(clip_only, rip_only, both), set_labels=['CLIP', 'fRIP'], set_colors=['#e41a1c', '#A1A838'])
         plt.savefig('%s_venn.pdf' % options.output_pre)
 
     ##################################################
@@ -175,10 +197,10 @@ def filter_single(ref_gtf):
 # Output:
 #  silent_genes:      Set of silent gene_id's.
 ################################################################################
-def find_silent(control_fpkm_file, silent_fpkm=0.5):
+def find_silent(clip_fpkm_file, silent_fpkm=0.1):
     # get fpkms (possibly from an isoform file)
     gene_fpkms = {}
-    control_fpkm_in = open(control_fpkm_file)
+    control_fpkm_in = open(clip_fpkm_file)
     control_fpkm_in.readline()
     for line in control_fpkm_in:
         a = line.split('\t')
@@ -193,6 +215,7 @@ def find_silent(control_fpkm_file, silent_fpkm=0.5):
             silent_genes.add(gene_id)
 
     return silent_genes
+
 
 ################################################################################
 # __main__
