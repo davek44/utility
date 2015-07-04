@@ -37,7 +37,7 @@ def main():
     if options.samples:
         samples = options.samples.split(',')
     else:
-        samples = sorted(gene_samples_fpkm[genes[0]].keys())
+        samples = sorted(gene_sample_fpkm[genes[0]].keys())
 
     if options.names:
         names = options.names.split(',')
