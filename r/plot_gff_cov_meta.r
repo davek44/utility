@@ -15,6 +15,7 @@ if (ncol(df) == 2) {
     gp = ggplot(df, aes(x=Index, y=Coverage))
 } else {
     gp = ggplot(df, aes(x=Index, y=Coverage, color=Type)) +
+        scale_x_continuous("% in transcript") +
         scale_color_manual("", values=c("#F46D43", "#66BD63"), breaks=c("Primary","Control"), labels=c(label.primary, label.control))
 
         #scale_color_brewer(palette="Set1")
@@ -24,7 +25,7 @@ gp +
     geom_point() +
     stat_smooth(method="loess", span=smooth.span) +
     theme_bw() +
-    theme(text=element_text(size=20)) +
+    theme(text=element_text(size=25)) +
     theme(legend.justification=c(1,0), legend.position=c(1,0))
 
 ggsave(paste(out.pre,"_raw.pdf",sep=""))
@@ -48,12 +49,13 @@ if (ncol(df) > 2) {
     }
 
     ggplot(df, aes(x=Index, y=Coverage.Norm, color=Type)) +
+        scale_x_continuous("% in transcript") +
         scale_color_manual("", values=c("#F46D43", "#66BD63"), breaks=c("Primary","Control"), labels=c(label.primary, label.control)) +
         geom_point() +
         stat_smooth(method="loess", span=smooth.span) +
         scale_y_continuous("Normalized coverage") +
         theme_bw() +
-        theme(text=element_text(size=20)) +
+        theme(text=element_text(size=25)) +
         theme(legend.justification=c(1,0), legend.position=c(1,0))
 
 # scale_color_brewer(palette="Set1")
