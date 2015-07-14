@@ -176,7 +176,7 @@ class Job:
     ############################################################
     # __init__
     ############################################################
-    def __init__(self, cmd, job_name, out_file=None, err_file=None, queue='general', cpu=1, mem=None, time=None):
+    def __init__(self, cmd, job_name, out_file=None, err_file=None, queue='general', cpu=1, mem=None, time=None, gpu=0):
         self.cmd = cmd
         self.job_name = job_name
         self.out_file = out_file
@@ -185,6 +185,7 @@ class Job:
         self.cpu = cpu
         self.mem = mem
         self.time = time
+        self.gpu = gpu
 
         self.id = None
         self.status = None
@@ -224,6 +225,8 @@ class Job:
             print >> sbatch_out, '#SBATCH --mem %d' % self.mem
         if self.time:
             print >> sbatch_out, '#SBATCH --time %s' % self.time
+        if self.gpu > 0:
+            print >> sbatch_out, '#SBATCH --gres=gpu:%d' % self.gpu
         print >> sbatch_out, ''
         print >> sbatch_out, self.cmd
 
