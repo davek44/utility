@@ -12,7 +12,7 @@ xmax = quantile(df$diff, .995, na.rm=T)
 
 ggplot(df, aes(x=diff, color=class)) +
     stat_ecdf(size=(sqrt(scale)*1.5), alpha=0.8, na.rm=T) +
-    scale_x_continuous("log2 RIP/Input", limits=c(xmin,xmax)) +
+    scale_x_continuous("log2 fRIP/Input", limits=c(xmin,xmax)) +
     scale_y_continuous("") +
     scale_color_manual("", values=c("#F46D43", "#66BD63")) +
     theme_bw() +
