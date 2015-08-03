@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # no __future__ division!
 import string, sys, math, random, pdb
+from collections import OrderedDict
 
 ############################################################
 # dna
@@ -18,7 +19,7 @@ import string, sys, math, random, pdb
 # for a single fasta entry.
 ############################################################
 def fasta2dict(fasta_file):
-    fasta_dict = {}    
+    fasta_dict = OrderedDict()
     header = ''
     
     for line in open(fasta_file):
