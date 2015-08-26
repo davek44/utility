@@ -32,9 +32,8 @@ def seq_logo(seq, heights, out_eps, weblogo_args=''):
 	fasta_out.close()
 
 	# print figure to a temp eps file
-	# eps_fd, eps_file = tempfile.mkstemp()
-	eps_file = 'raw_logo.eps'
-	weblogo_cmd = 'weblogo --errorbars NO --show-xaxis NO --show-yaxis NO --fineprint "" -c classic %s < %s > %s' % (weblogo_args, fasta_file, eps_file)
+	eps_fd, eps_file = tempfile.mkstemp()
+	weblogo_cmd = 'weblogo --errorbars NO --show-xaxis NO --show-yaxis NO --fineprint "" -c classic -n %d %s < %s > %s' % (len(seq), weblogo_args, fasta_file, eps_file)
 	subprocess.call(weblogo_cmd, shell=True)
 
 	# copy eps file over and write in my own heights
@@ -74,8 +73,8 @@ def seq_logo(seq, heights, out_eps, weblogo_args=''):
 	# clean
 	os.close(fasta_fd)
 	os.remove(fasta_file)
-	#os.close(eps_fd)
-	#os.remove(eps_file)
+	os.close(eps_fd)
+	os.remove(eps_file)
 
 
 ################################################################################
