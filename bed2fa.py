@@ -71,6 +71,7 @@ def header_bed(header, seq, bed_file, options):
         a[-1] = a[-1].rstrip()
 
         if a[0] == header:
+            # determine start and end 
             feat_start = int(a[1])
             feat_end = int(a[2])
             if options.length_match:
@@ -78,10 +79,12 @@ def header_bed(header, seq, bed_file, options):
                 feat_start = feat_mid - options.length_match/2
                 feat_end = feat_mid + options.length_match/2
 
+            # determine strand
             feat_strand = '+'
             if len(a) > 5 and  a[5] == '-':
                 feat_strand = '-'
 
+            # determine header
             if options.add_coords_header:
                 feat_header = '%s:%s-%s:%s' % (header,a[1],a[2],feat_strand)
             else:
@@ -89,9 +92,23 @@ def header_bed(header, seq, bed_file, options):
                 if len(a) > 3 and a[3] != '.':
                     feat_header = a[3]
             
-            if feat_strand == '+':
-                feat_seq = seq[feat_start:feat_end]
-            else:
+            # determine sequence
+            feat_seq = ''
+            
+            # if negative index, start with N's
+            if feat_start < 0:
+                feat_seq += 'N'*(-feat_start)
+                feat_start = 0
+
+            # grab the genome sequence
+            feat_seq += seq[feat_start:feat_end]
+
+            # if it's too short, extend with N's
+            if options.length_match and len(feat_seq) < options.length_match:
+                feat_seq += 'N'*(options.length_match - len(feat_seq))
+
+            # reverse complement
+            if feat_strand == '-':
                 feat_seq = dna.rc(seq[feat_start:feat_end])
 
             #print '>%s\n%s' % (feat_header, feat_seq)
