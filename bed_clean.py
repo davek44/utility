@@ -12,16 +12,16 @@ from optparse import OptionParser
 # main
 ################################################################################
 def main():
-    usage = 'usage: %prog [options] <bed_file> <sizes_file>'
+    usage = 'usage: %prog [options] <csizes_file> <bed_file>'
     parser = OptionParser(usage)
     #parser.add_option()
     (options,args) = parser.parse_args()
 
-    if len(args) != :
+    if len(args) != 2:
         parser.error('Must provide BED file and chrom sizes file')
     else:
-        bed_file = args[0]
-        csizes_file = args[1]
+        csizes_file = args[0]
+        bed_file = args[1]
 
     # read in chromosome sizes
     chrom_sizes = {}
@@ -40,14 +40,9 @@ def main():
             print line,
 
         else:
-            shift = end - chrom_sizes[chrom]
-            start -= shift
-            end -= shift
-
-            a[1] = str(start)
+            end = chrom_sizes[chrom]
             a[2] = str(end)
             print '\t'.join(a)
-
     
 
 ################################################################################
