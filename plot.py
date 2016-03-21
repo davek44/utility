@@ -15,11 +15,11 @@ import matplotlib.pyplot as plt
 # Determine a nice buffered axis range from a list/array of numbers
 #####################################################################
 def limits(nums, buf_pct=0.05):
-	nmin = min(nums)
-	nmax = max(nums)
-	spread = nmax-nmin
-	buf = buf_pct*spread
-	return nmin-buf, nmax+buf
+    nmin = min(nums)
+    nmax = max(nums)
+    spread = nmax-nmin
+    buf = buf_pct*spread
+    return nmin-buf, nmax+buf
 
 #####################################################################
 # scatter
@@ -40,7 +40,7 @@ def scatter(x, y, pdf, xlabel='', ylabel=''):
     map(lambda xl: xl.set_fontsize(15), ax.get_xticklabels())
 
     # y-axis
-  	ymin, ymax = limits(y)
+    ymin, ymax = limits(y)
     plt.ylim(ymin, ymax)
     plt.ylabel(ylabel)
     ax.yaxis.label.set_fontsize(18)
