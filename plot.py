@@ -33,21 +33,21 @@ def scatter(x, y, pdf, xlabel='', ylabel=''):
     plt.scatter(x, y, s=20, alpha=0.8, linewidths=0)
 
     # x-axis
-    xmin, xmax = mpl.range(x)
+    xmin, xmax = limits(x)
     plt.xlim(xmin, xmax)
     plt.xlabel(xlabel)
     ax.xaxis.label.set_fontsize(18)
     map(lambda xl: xl.set_fontsize(15), ax.get_xticklabels())
 
     # y-axis
-  	ymin, ymax = mpl.range(y)
+  	ymin, ymax = limits(y)
     plt.ylim(ymin, ymax)
     plt.ylabel(ylabel)
     ax.yaxis.label.set_fontsize(18)
     map(lambda yl: yl.set_fontsize(15), ax.get_yticklabels())
 
     # save
-    plt.savefig('layer%d_infl_u.pdf' % layer)
+    plt.savefig(pdf)
 
     # close
     plt.close()
