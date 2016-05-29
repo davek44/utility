@@ -28,10 +28,11 @@ def main():
             gff_open = open(args[0])
 
     for line in gff_open:
-        a = line.split('\t')
+        if not line.startswith('##'):
+            a = line.split('\t')
 
-        cols = [a[0], str(int(a[3])-1), a[4], a[2], '0', a[6], '0', '0', '255,0,0', '1', str(int(a[4])-int(a[3])+1), '0']
-        print '\t'.join(cols)
+            cols = [a[0], str(int(a[3])-1), a[4], a[2], '0', a[6], '0', '0', '255,0,0', '1', str(int(a[4])-int(a[3])+1), '0']
+            print '\t'.join(cols)
     
 
 ################################################################################
