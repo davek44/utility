@@ -55,7 +55,7 @@ def hash_input_fpkm(diff_file, just_ok=False, log_pseudo=None, by_rbp=False):
 
             if by_rbp:
                 input_fpkm_raw.setdefault(rbp,{})[gene_id] = fpkm_final
-            else:                
+            else:
                 #input_fpkm[gene_id] = fpkm_final
                 input_fpkm_raw.setdefault(gene_id,[]).append(fpkm_final)
 
@@ -64,7 +64,7 @@ def hash_input_fpkm(diff_file, just_ok=False, log_pseudo=None, by_rbp=False):
     # average multiples
     if by_rbp:
         input_fpkm = input_fpkm_raw
-    
+
     else:
         input_fpkm = {}
         for gene_id in input_fpkm_raw:
@@ -75,7 +75,7 @@ def hash_input_fpkm(diff_file, just_ok=False, log_pseudo=None, by_rbp=False):
 
 ################################################################################
 # hash_rip_fold
-# 
+#
 # Input:
 #  diff_file:    RIP gene_exp.diff file, comparing RBPs and input.
 #  min_fpkm:     Minimum FPKM to consider a gene.
@@ -102,7 +102,7 @@ def hash_rip_fold(diff_file, min_fpkm=0, pseudocount=0.125, max_fold=None, one_r
         sample2 = a[5]
         fpkm1 = float(a[7])
         fpkm2 = float(a[8])
-        
+
         rbp = None
         if sample1 == 'input':
             rbp = sample2
@@ -130,7 +130,7 @@ def hash_rip_fold(diff_file, min_fpkm=0, pseudocount=0.125, max_fold=None, one_r
 
 ################################################################################
 # hash_rip
-# 
+#
 # Input:
 #  diff_file:      RIP gene_exp.diff file, comparing RBPs and input.
 #  just_ok:        Return the RIP stat for only status OK genes.

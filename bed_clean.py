@@ -14,7 +14,7 @@ from optparse import OptionParser
 def main():
     usage = 'usage: %prog [options] <csizes_file> <bed_file>'
     parser = OptionParser(usage)
-    #parser.add_option()
+    parser.add_option('-d', dest='delete', default=False, action='store_true', help='Delete entries beyond boundaries [Default: %default]')
     (options,args) = parser.parse_args()
 
     if len(args) != 2:
@@ -40,9 +40,10 @@ def main():
             print line,
 
         else:
-            end = chrom_sizes[chrom]
-            a[2] = str(end)
-            print '\t'.join(a)
+            if not options.delete:
+                end = chrom_sizes[chrom]
+                a[2] = str(end)
+                print '\t'.join(a)
     
 
 ################################################################################

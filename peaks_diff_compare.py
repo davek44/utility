@@ -69,10 +69,17 @@ def main():
     # collect RIP stats
     ##################################################
     if options.test_stat:
-        rip_fold, rip_bound = ripseq.hash_rip(diff_file, just_ok = True, use_fold=False, max_stat=options.max_stat, one_rbp=True)
+        rip_fold, rip_bound = ripseq.hash_rip(diff_file, just_ok=True, use_fold=False, max_stat=options.max_stat, one_rbp=True)
     else:
         rip_fold, rip_bound = ripseq.hash_rip(diff_file, use_fold=True, max_stat=options.max_stat, one_rbp=True)
         rip_fold = ripseq.hash_rip_fold(diff_file, min_fpkm=0.125, max_fold=10, one_rbp=True)
+
+    # TEMP: print bound genes
+    # genes_out = open('%s_genes.txt' % options.output_pre, 'w')
+    # for gene_id in rip_bound:
+    #     if rip_bound[gene_id]:
+    #         print >> genes_out, gene_id, rip_fold[gene_id]
+    # genes_out.close()
 
     ##################################################
     # plot bound and unbound distributions
@@ -100,7 +107,7 @@ def main():
     z, p = stats.mannwhitneyu(bound_fold, unbound_fold)
 
     stats_out = open('%s_stats.txt' % options.output_pre, 'w')
-    cols = (options.rbp, len(bound_fold), stats.mean(bound_fold), len(unbound_fold), stats.mean(unbound_fold), z, p)    
+    cols = (options.rbp, len(bound_fold), stats.mean(bound_fold), len(unbound_fold), stats.mean(unbound_fold), z, p)
     print >> stats_out, '%-10s  %5d  %6.2f  %5d  %6.2f  %6.2f  %9.2e' % cols
     stats_out.close()
 
