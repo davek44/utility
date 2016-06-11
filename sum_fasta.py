@@ -19,14 +19,14 @@ def main():
     parser.add_option('-q', action='store_true', dest='fastq', default=False, help='File is fastq [Default: %default]')
     parser.add_option('-r', action='store_true', dest='raw_only', default=False, help='Print only the raw count rather than a string version, too [Default: %default]')
     (options,args) = parser.parse_args()
-    
+
     if options.sum_indiv:
         for faf in args:
             sums_fasta(faf, options.ignore_n, options.raw_only)
-            
+
     else:
         for faf in args:
-            print '%s\t' % faf,
+            print('%s\t' % faf, end='')
             if options.fastq:
                 sum_fastq(faf, True, options.ignore_n, options.raw_only)
             else:
@@ -86,7 +86,7 @@ def sum_fastq(fastq_file, do_print=False, ignore_n=False, raw_only=False):
         output_sum(fsum, raw_only)
 
     return fsum
-  
+
 ############################################################
 # sums_fasta
 ############################################################
@@ -103,7 +103,7 @@ def sums_fasta(fasta_file, ignore_n=False, raw_only=False):
             if fsum:
                 output_sum(fsum, raw_only)
             fsum = 0
-            print line.rstrip()+'\t',
+            print(line.rstrip()+'\t', end='')
         else:
             if ignore_n:
                 fsum += len([nt for nt in line.rstrip() if nt != 'N'])
@@ -120,20 +120,20 @@ def sums_fasta(fasta_file, ignore_n=False, raw_only=False):
 ############################################################
 def output_sum(sum, raw_only):
     # output
-    print sum,
+    print(sum, end='')
     if raw_only:
-        print ''
+        print('')
     else:
         if sum > 1000000000:
-            print '(%.4f Gb)' % (sum/1000000000.0)
+            print('(%.4f Gb)' % (sum/1000000000.0))
         elif sum > 1000000:
-            print '(%.4f Mb)' % (sum/1000000.0)
+            print('(%.4f Mb)' % (sum/1000000.0))
         elif sum > 1000:
-            print '(%.4f Kb)' % (sum/1000.0)
+            print('(%.4f Kb)' % (sum/1000.0))
         else:
-            print ''
+            print('')
 
-        
+
 ############################################################
 # __main__
 ############################################################
