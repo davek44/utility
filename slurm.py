@@ -153,6 +153,7 @@ def multi_update_status(jobs):
             time.sleep(10)
 
         sacct_str = subprocess.check_output('sacct', shell=True)
+        sacct_str = sacct_str.decode('UTF-8')
 
         # split into job lines
         sacct_lines = sacct_str.split('\n')
@@ -242,6 +243,7 @@ class Job:
                 time.sleep(10)
 
             sacct_str = subprocess.check_output('sacct', shell=True)
+            sacct_str = sacct_str.decode('UTF-8')
 
             sacct_lines = sacct_str.split('\n')
             for line in sacct_lines[2:]:
