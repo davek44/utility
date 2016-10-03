@@ -221,7 +221,7 @@ class Job:
         sbatch_out.close()
 
         # launch it; check_output to get the id
-        launch_str = subprocess.check_output('sbatch %s' % self.sbatch_file, shell=True)
+        launch_str = subprocess.check_output('sbatch %s' % sbatch_tempf.name, shell=True)
 
         # e.g. "Submitted batch job 13861989"
         self.id = int(launch_str.split()[3])
