@@ -30,7 +30,7 @@ def main():
     input_in = open(input_file)
 
     if options.header:
-        print input_in.readline(),
+        print(input_in.readline(), end='')
 
     # fill
     i = 0
@@ -46,7 +46,7 @@ def main():
     	i += 1
 
     # print
-    print ''.join(reservoir),
+    print(''.join(reservoir), end='')
 
 ################################################################################
 # __main__
