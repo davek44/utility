@@ -189,16 +189,6 @@ class Job:
 
         self.id = None
         self.status = None
-        self.sbatch_file = None
-        self.sbatch_fd = None
-
-
-    ############################################################
-    # clean
-    ############################################################
-    def clean(self):
-        os.close(self.sbatch_fd)
-        os.remove(self.sbatch_file)
 
 
     ############################################################
@@ -208,8 +198,8 @@ class Job:
     ############################################################
     def launch(self):
         # make sbatch script
-        self.sbatch_fd, self.sbatch_file = tempfile.mkstemp(dir='%s/research/scratch/temp' % os.environ['HOME'])
-        sbatch_out = open(self.sbatch_file, 'w')
+        sbatch_tempf = tempfile.NamedTemporaryFile()
+        sbatch_out = open(sbatch_tempf.name, 'w')
 
         print('#!/bin/sh\n', file=sbatch_out)
         print('#SBATCH -p %s' % self.queue, file=sbatch_out)
