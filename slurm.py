@@ -55,7 +55,7 @@ def main():
         while main_job.update_status() and main_job.status in ['PENDING','RUNNING']:
             time.sleep(30)
 
-        print >> sys.stderr, '%s %s' % (main_job.job_name, main_job.status)
+        print('%s %s' % (main_job.job_name, main_job.status), file=sys.stderr)
 
         # delete sbatch
         main_job.clean()
@@ -66,7 +66,7 @@ def main():
 #
 #
 # Launch and manage multiple SLURM jobs in parallel, using only one 'sacct'
-# call per 
+# call per
 ################################################################################
 def multi_run(jobs, max_proc=None, verbose=False):
     total = len(jobs)
@@ -77,11 +77,11 @@ def multi_run(jobs, max_proc=None, verbose=False):
 
     while finished + running < total:
         # launch jobs up to the max
-        while running < max_proc and finished+running < total:            
+        while running < max_proc and finished+running < total:
             # launch
             jobs[finished+running].launch()
             if verbose:
-                print >> sys.stderr, jobs[finished+running].job_name, jobs[finished+running].cmd
+                print(jobs[finished+running].job_name, jobs[finished+running].cmd, file=sys.stderr)
 
             # find it
             time.sleep(5)
@@ -105,7 +105,7 @@ def multi_run(jobs, max_proc=None, verbose=False):
                 active_jobs_new.append(active_jobs[i])
             else:
                 if verbose:
-                    print >> sys.stderr, '%s %s' % (active_jobs[i].job_name, active_jobs[i].status)
+                    print('%s %s' % (active_jobs[i].job_name, active_jobs[i].status), file=sys.stderr)
 
                 running -= 1
                 finished += 1
@@ -128,12 +128,12 @@ def multi_run(jobs, max_proc=None, verbose=False):
                 active_jobs_new.append(active_jobs[i])
             else:
                 if verbose:
-                    print >> sys.stderr, '%s %s' % (active_jobs[i].job_name, active_jobs[i].status)
+                    print('%s %s' % (active_jobs[i].job_name, active_jobs[i].status), file=sys.stderr)
 
                 running -= 1
                 finished += 1
 
-        active_jobs = active_jobs_new        
+        active_jobs = active_jobs_new
 
 
 ################################################################################
@@ -211,24 +211,22 @@ class Job:
         self.sbatch_fd, self.sbatch_file = tempfile.mkstemp(dir='%s/research/scratch/temp' % os.environ['HOME'])
         sbatch_out = open(self.sbatch_file, 'w')
 
-        print >> sbatch_out, '#!/bin/sh'
-        print >> sbatch_out, ''
-        print >> sbatch_out, '#SBATCH -p %s' % self.queue
-        print >> sbatch_out, '#SBATCH -n %d' % self.cpu
+        print('#!/bin/sh\n', file=sbatch_out)
+        print('#SBATCH -p %s' % self.queue, file=sbatch_out)
+        print('#SBATCH -n %d' % self.cpu, file=sbatch_out)
         if self.job_name:
-            print >> sbatch_out, '#SBATCH -J %s' % self.job_name
+            print('#SBATCH -J %s' % self.job_name, file=sbatch_out)
         if self.out_file:
-            print >> sbatch_out, '#SBATCH -o %s' % self.out_file
+            print('#SBATCH -o %s' % self.out_file, file=sbatch_out)
         if self.err_file:
-            print >> sbatch_out, '#SBATCH -e %s' % self.err_file
+            print('#SBATCH -e %s' % self.err_file, file=sbatch_out)
         if self.mem:
-            print >> sbatch_out, '#SBATCH --mem %d' % self.mem
+            print('#SBATCH --mem %d' % self.mem, file=sbatch_out)
         if self.time:
-            print >> sbatch_out, '#SBATCH --time %s' % self.time
+            print('#SBATCH --time %s' % self.time, file=sbatch_out)
         if self.gpu > 0:
-            print >> sbatch_out, '#SBATCH --gres=gpu:%d' % self.gpu
-        print >> sbatch_out, ''
-        print >> sbatch_out, self.cmd
+            print('#SBATCH --gres=gpu:tesla:%d\n' % self.gpu, file=sbatch_out)
+        print(self.cmd, file=sbatch_out)
 
         sbatch_out.close()
 
@@ -268,14 +266,14 @@ class Job:
                     status = a[5]
 
             attempt += 1
-                
+
         if status == None:
             return False
         else:
             self.status = status
             return True
 
-        
+
 ################################################################################
 # __main__
 ################################################################################
