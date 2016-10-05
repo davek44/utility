@@ -74,6 +74,8 @@ def multi_run(jobs, max_proc=None, verbose=False):
     running = 0
     active_jobs = []
 
+    if max_proc is None:
+        max_proc = len(jobs)
 
     while finished + running < total:
         # launch jobs up to the max
