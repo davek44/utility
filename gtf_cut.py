@@ -40,9 +40,9 @@ def main():
 
             if options.line_too:
                 key_str = '\t'.join([kv.get(key,'-') for key in keys])
-                print '%s\t%s' % (key_str,line),
+                print('%s\t%s' % (key_str,line))
             else:
-                print '\t'.join([kv.get(key,'-') for key in keys])
+                print('\t'.join([kv.get(key,'-') for key in keys]))
 
 
 ################################################################################

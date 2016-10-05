@@ -21,7 +21,7 @@ from collections import OrderedDict
 def fasta2dict(fasta_file):
     fasta_dict = OrderedDict()
     header = ''
-    
+
     for line in open(fasta_file):
         if line[0] == '>':
             #header = line.split()[0][1:]
@@ -53,17 +53,17 @@ def rc_file(seq_file):
         if line[0] == '>':
             # print last sequence
             if seq:
-                print seq.translate(string.maketrans("ATCGatcg","TAGCtagc"))[::-1]
+                print(seq.translate(string.maketrans("ATCGatcg","TAGCtagc"))[::-1])
 
             # print header
-            print '%s_rc' % line.rstrip()
+            print('%s_rc' % line.rstrip())
             seq = ''
         else:
             seq += line.rstrip()
 
     # print last sequence
     if seq:
-        print seq.translate(string.maketrans("ATCGatcg","TAGCtagc"))[::-1]
+        print(seq.translate(string.maketrans("ATCGatcg","TAGCtagc"))[::-1])
 
 
 ############################################################
@@ -99,12 +99,12 @@ def count_kmers(k, seq, all=False):
                 break
 
     if all:
-        # add zero count kmers        
+        # add zero count kmers
         for i in range(int(math.pow(4,k))):
             kmer = int2kmer(k,i)
             if not kmers.has_key(kmer):
-                kmers[kmer] = 0                
-                
+                kmers[kmer] = 0
+
     return kmers
 
 
@@ -159,7 +159,7 @@ def canonical_kmers(kmers, return_all=False):
     canon_kmers = {}
     for kmer in kmers:
         kmer_rc = rc(kmer)
-            
+
         if kmer < kmer_rc:
             # add current
             if canon_kmers.has_key(kmer):
@@ -203,7 +203,7 @@ def fasta_rand(num_seq, reads_file, out_file='', mates_file=''):
         out = open(out_file, 'w')
     else:
         out = sys.stdout
-    
+
     if mates_file:
         # get mates
         mates = {}
@@ -371,17 +371,17 @@ def translate_file(seq_file):
         if line[0] == '>':
             # print last sequence
             if seq:
-                print translate(seq)
+                print(translate(seq))
 
             # print header
-            print '%s_aa' % line.rstrip()
+            print('%s_aa' % line.rstrip())
             seq = ''
         else:
             seq += line.rstrip()
 
     # print last sequence
     if seq:
-        print translate(seq)
+        print(translate(seq))
 
 ############################################################
 # __main__
@@ -393,15 +393,15 @@ if __name__ == '__main__':
         nsum = float(sum(nt_comp.values()))
         at = (nt_comp['A']+nt_comp['T'])
         gc = (nt_comp['C']+nt_comp['G'])
-        print 'A/T %d (%.4f)' % (at,at/nsum)
-        print 'G/C %d (%.4f)' % (gc,gc/nsum)
+        print('A/T %d (%.4f)' % (at,at/nsum))
+        print('G/C %d (%.4f)' % (gc,gc/nsum))
 
     # print kmer composition
     elif len(sys.argv) == 4 and sys.argv[1] == '--kmers':
         nt_kmers = count_kmers_file(int(sys.argv[2]), sys.argv[3])
         kmer_sum = float(sum(nt_kmers.values()))
         for kmer in sorted(nt_kmers.keys()):
-            print '%s %8d %.4f' % (kmer,nt_kmers[kmer],nt_kmers[kmer]/kmer_sum)
+            print('%s %8d %.4f' % (kmer,nt_kmers[kmer],nt_kmers[kmer]/kmer_sum))
 
     # print DNA reverse complement
     elif len(sys.argv) == 3 and sys.argv[1] == '--rc':
@@ -413,7 +413,7 @@ if __name__ == '__main__':
         if rcf:
             rc_file(sys.argv[2])
         else:
-            print rc(sys.argv[2])
+            print(rc(sys.argv[2]))
 
     # translate DNA sequence
     elif len(sys.argv) == 3 and sys.argv[1] == '--trans':
@@ -425,7 +425,7 @@ if __name__ == '__main__':
         if tf:
             translate_file(sys.argv[2])
         else:
-            print translate(sys.argv[2])
+            print(translate(sys.argv[2]))
 
     # print random sequences from fasta file
     elif len(sys.argv) == 4 and sys.argv[1] == '--rand':
@@ -437,7 +437,7 @@ if __name__ == '__main__':
         fastq_rand(int(sys.argv[3]), sys.argv[2])
 
     else:
-        print 'Usage: dna.py --comp <seq_file>'
-        print 'Usage: dna.py --rc <seq>'
-        print 'Usage: dna.py --rand <seq_file> <num>'
-        print 'Usage: dna.py --kmers <k> <seq_file>'
+        print('Usage: dna.py --comp <seq_file>')
+        print('Usage: dna.py --rc <seq>')
+        print('Usage: dna.py --rand <seq_file> <num>')
+        print('Usage: dna.py --kmers <k> <seq_file>')
