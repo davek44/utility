@@ -21,7 +21,7 @@ def slurmify(cmds, mem_mb=None):
         mem_str = '--mem %d' % mem_mb
     else:
         mem_str = ''
-        
+
     return ['srun -p general -n 1 %s "%s"' % (mem_str,c) for c in cmds]
 
 ############################################################
@@ -30,7 +30,7 @@ def slurmify(cmds, mem_mb=None):
 # Execute the commands in the list 'cmds' in parallel, but
 # only running 'max_proc' at a time.
 ############################################################
-def exec_par(cmds, max_proc, print_cmd=False):
+def exec_par(cmds, max_proc, verbose=False):
     total = len(cmds)
     finished = 0
     running = 0
@@ -38,8 +38,8 @@ def exec_par(cmds, max_proc, print_cmd=False):
 
     if max_proc == 1:
         while finished < total:
-            if print_cmd:
-                print >> sys.stderr, cmds[finished]
+            if verbose:
+                print(cmds[finished], file=sys.stderr)
             op = subprocess.Popen(cmds[finished], shell=True)
             os.waitpid(op.pid, 0)
             finished += 1
@@ -48,8 +48,8 @@ def exec_par(cmds, max_proc, print_cmd=False):
         while finished + running < total:
             # launch jobs up to max
             while running < max_proc and finished+running < total:
-                if print_cmd:
-                    print >> sys.stderr, cmds[finished+running]
+                if verbose:
+                    print(cmds[finished+running], file=sys.stderr)
                 p.append(subprocess.Popen(cmds[finished+running], shell=True))
                 #print 'Running %d' % p[running].pid
                 running += 1
@@ -98,7 +98,7 @@ def slurm_par(cmds, max_proc, queue='general', cpu=1, mem=None, out_files=None, 
         err_strs = ['-e %s' % ef for ef in err_files]
     else:
         err_strs = ['']*len(cmds)
-        
+
     slurm_cmds = ['srun -p %s -n %d %s %s %s "%s"' % (queue, cpu, mem_str, out_strs[i], err_strs[i], cmds[i]) for i in range(len(cmds))]
 
     exec_par(slurm_cmds, max_proc, print_cmd=True)
