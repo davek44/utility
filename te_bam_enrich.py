@@ -33,7 +33,8 @@ def main():
     usage = 'usage: %prog [options] <bam_file,bam_file2,...>'
     parser = OptionParser(usage)
     parser.add_option('-c', dest='control_bam_files', help='Control BAM file to paramterize null distribution [Default: %default]')
-    parser.add_option('-g', dest='filter_gff', help='Filter the TEs by overlap with genes in the given gff file [Default: %default]')
+    parser.add_option('-f', dest='filter_gff', help='Filter the TEs by overlap with genes in the given gff file [Default: %default]')
+    parser.add_option('-g', dest='genome', default='HG19', help='Genome directory to obtain lengths from [Default: %default]')
     parser.add_option('-m', dest='mapq', default=False, action='store_true', help='Consider only reads with mapq>0 [Default: %default]')
     parser.add_option('-r', dest='repeats_gff', default='%s/hg19.fa.out.tp.gff' % os.environ['MASK'])
     parser.add_option('-s', dest='strand_split', default=False, action='store_true', help='Split statistics by strand [Default: %default]')
@@ -91,7 +92,7 @@ def main():
     if options.filter_gff:
         genome_length = count_bed(filter_merged_bed_file, read_len)
     else:
-        genome_length = count_hg19()
+        genome_length = count_genome(options.genome)
 
     # hash counted repeat genomic bp
     if options.filter_gff:
@@ -171,7 +172,7 @@ def main():
         # compute p-value of enrichment/depletion
         p_val = 1.0
         for i in range(len(bam_files)):
-            if te_fragment_rates[(rep,fam)] > null_rate:            
+            if te_fragment_rates[(rep,fam)] > null_rate:
                 p_val *= binom.sf(int(te_fragments[i].get((rep,fam),1))-1, int(fragments[i]), null_rate)
             else:
                 p_val *= binom.cdf(int(te_fragments[i].get((rep,fam),1)), int(fragments[i]), null_rate)
@@ -204,7 +205,7 @@ def main():
 # Count the number of bp in the filter merged BED file.
 ################################################################################
 def count_bed(bed_file, read_len):
-    bp = 0    
+    bp = 0
     for line in open(bed_file):
         a = line.split()
         bp += int(a[2]) - int(a[1]) - read_len + 1
@@ -212,25 +213,35 @@ def count_bed(bed_file, read_len):
 
 
 ################################################################################
-# count_hg19
+# count_genome
 #
-# Count the number of bp in hg19 where TEs could be.
+# Count the number of bp in the genome where TEs could be.
 ################################################################################
-def count_hg19():
-    chrom_sizes_file = '%s/research/common/data/genomes/hg19/assembly/human.hg19.genome' % os.environ['HOME']
-    gap_bed_file = '%s/research/common/data/genomes/hg19/assembly/hg19_gaps.bed' % os.environ['HOME']
+def count_genome(genome):
+    chrom_sizes_file = glob.glob('%s/assembly/*.genome' % os.environ[genome])[0]
+
     valid_chrs = ['chr%d' % c for c in range(1,23)] + ['chrX','chrY']
 
     genome_bp = 0
-    for line in open(chrom_sizes_file):        
+    for line in open(chrom_sizes_file):
         a = line.split()
-        if len(a) > 0 and a[0] in valid_chrs:
+        if len(a) > 0:
+            if a[0].find('random') != -1:
+                continue
+            if a[0].find('chrUn') != -1:
+                continue
+            if a[0].find('hap') != -1:
+                continue
+
             genome_bp += int(a[1])
 
-    for line in open(gap_bed_file):
-        a = line.split()
-        if a[0] in valid_chrs:
-            genome_bp -= int(a[2])-int(a[1])
+    gap_bed_files = glob.glob('%s/assembly/*gaps.bed' % os.environ[genome])
+    if len(gap_bed_files):
+        gap_bed_file = gap_bed_files[0]
+        for line in open(gap_bed_file):
+            a = line.split()
+            if a[0] in valid_chrs:
+                genome_bp -= int(a[2])-int(a[1])
 
     return genome_bp
 
@@ -314,7 +325,7 @@ def estimate_read_length(bam_file):
         if s >= samples:
             break
     return int(0.5+stats.mean(read_lengths))
-        
+
 
 ################################################################################
 # measure_te
@@ -437,13 +448,13 @@ def te_target_size_bed(te_gff, ref_bed, read_len):
             bed_te_intervals[bid] = {}
         bed_te_intervals[bid].setdefault((rep,fam),[]).append((ostart,oend))
         bed_te_intervals[bid].setdefault(('*',fam),[]).append((ostart,oend))
-        bed_te_intervals[bid].setdefault(('*','*'),[]).append((ostart,oend))        
+        bed_te_intervals[bid].setdefault(('*','*'),[]).append((ostart,oend))
 
     p.communicate()
 
     target_size = {}
     for bid in bed_te_intervals:
-        bchrom, bstart = bid        
+        bchrom, bstart = bid
 
         for te in bed_te_intervals[bid]:
             bt_intervals = bed_te_intervals[bid][te]

@@ -227,7 +227,7 @@ def kv_gtf(d):
 #  spread_upper:
 #
 # Output
-#  
+#
 ################################################################################
 def length_filter(ref_gtf, filter_gtf, spread_lower, spread_upper, verbose=False):
      # hash lengths
@@ -403,7 +403,7 @@ def splice_sites(gtf_file, exon=0, intron=2, output_file=None):
                # donor
                cols = [g.chrom, source, 'donor', str(g.exons[i+1].start-intron), str(g.exons[i+1].start+exon-1), '.', g.strand, '.', kv_gtf(g.kv)]
                print >> out, '\t'.join(cols)
-           
+
                # acceptor
                cols = [g.chrom, source, 'acceptor', str(g.exons[i].end-exon+1), str(g.exons[i].end+intron), '.', g.strand, '.', kv_gtf(g.kv)]
                print >> out, '\t'.join(cols)
@@ -428,7 +428,7 @@ def read_genes(gtf_file, key_id='transcript_id', sort=True):
     line = gtf_in.readline()
     while line[:2] == '##':
         line = gtf_in.readline()
-    
+
     while line:
         a = line.split('\t')
         if a[2] in ['exon','CDS']:
@@ -471,7 +471,7 @@ def three_prime(gtf_file, upstream=0, downstream=2000, output_file=None):
             cols = [g.chrom, source, '3p', str(g.exons[0].start-downstream), str(g.exons[0].start+upstream), '.', g.strand, '.', kv_gtf(g.kv)]
         else:
             cols = []
-        
+
         if cols:
             print >> out, '\t'.join(cols)
 
@@ -566,6 +566,12 @@ class Gene:
             #print >> sys.stderr, 'Warning: exons are not sorted - %s' % kv_gtf(self.kv)
             self.exons.sort()
 
+    def tss(self):
+        if self.strand == '-':
+            return self.exons[-1].end
+        else:
+            return self.exons[0].start
+
     def __str__(self):
         return '%s %s %s %s' % (self.chrom, self.strand, kv_gtf(self.kv), ','.join([ex.__str__() for ex in self.exons]))
 
@@ -578,6 +584,12 @@ class Exon:
         self.start = start
         self.end = end
 
+    def __eq__(self, other):
+        return self.start == other.start
+
+    def __lt__(self, other):
+        return self.start < other.start
+
     def __cmp__(self, x):
         if self.start < x.start:
             return -1
@@ -588,7 +600,7 @@ class Exon:
 
     def __str__(self):
         return 'exon(%d-%d)' % (self.start,self.end)
-        
+
 
 ################################################################################
 # __main__
