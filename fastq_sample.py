@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import print_function
 from optparse import OptionParser
 import gzip
 import random
@@ -88,7 +89,7 @@ def main():
     out1_open.close()
     out2_open.close()
 
-    
+
 def open_maygz(input_file):
     ''' Open the file, which may be gzipped. '''
     if input_file[-3:] == '.gz':
@@ -96,7 +97,7 @@ def open_maygz(input_file):
     else:
         input_open = open(input_file)
     return input_open
-    
+
 
 def print_read(out_open, header, seq, mid, qual):
     print(header, file=out_open, end='')
