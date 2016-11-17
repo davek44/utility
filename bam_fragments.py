@@ -42,17 +42,11 @@ def main():
 # Note: segemehl writes NH as the total possible alignments.
 ################################################################################
 def count(bam_file, filter_mapq=False):
-    bam_in = pysam.Samfile(bam_file, 'rb')
-
-    # segemehl
-    aligner = bam_in.header['PG'][0]['ID']
-    if aligner[-8:] == 'segemehl':
-        multimap_max = segemehl_multimap_max(bam_in)
-
     # initialize
     bam_count = 0.0
 
     # process
+    bam_in = pysam.Samfile(bam_file, 'rb')
     for aligned_read in bam_in:
         if filter_mapq == False or aligned_read.mapq > 0:
             nh_tag = 1
