@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import print_function
 from optparse import OptionParser
 import os, subprocess, tempfile
 import pysam
@@ -28,11 +29,11 @@ def main():
         bam_file = args[0]
 
     if options.gff_file:
-        print count_gff(bam_file, options.gff_file, options.filter_mapq)
+        print(count_gff(bam_file, options.gff_file, options.filter_mapq))
     elif options.gtf_file:
-        print count_gtf(bam_file, options.gtf_file, options.filter_mapq)
+        print(count_gtf(bam_file, options.gtf_file, options.filter_mapq))
     else:
-        print count(bam_file)
+        print(count(bam_file))
 
 
 ################################################################################
@@ -54,12 +55,9 @@ def count(bam_file, filter_mapq=False):
     # process
     for aligned_read in bam_in:
         if filter_mapq == False or aligned_read.mapq > 0:
-            try:
-                nh_tag = aligned_read.opt('NH')
-                #if aligner == 'segemehl':
-                #    nh_tag = min(nh_tag, multimap_max)
-            except:
-                nh_tag = 1
+            nh_tag = 1
+            if aligned_read.has_tag('NH'):
+                nh_tag = aligned_read.get_tag('NH')
 
             if aligned_read.is_paired:
                 bam_count += 0.5/nh_tag
@@ -89,8 +87,8 @@ def count_gff(bam_file, gff_file, filter_mapq=False):
     multi_maps = {}
     paired_poll = {False:0, True:0}
     for aligned_read in bam_in:
-        if aligned_read.opt('NH') > 1:
-            nh_tag = aligned_read.opt('NH')
+        if aligned_read.get_tag('NH') > 1:
+            nh_tag = aligned_read.get_tag('NH')
             if aligner == 'segemehl':
                 multi_maps[aligned_read.qname] = min(nh_tag, multimap_max)
             else:
@@ -100,7 +98,7 @@ def count_gff(bam_file, gff_file, filter_mapq=False):
 
     # guess paired-ness
     if paired_poll[True] > 0 and paired_poll[False] > 0:
-        print >> sys.stderr, 'Paired-ness of the reads is ambiguous'
+        print('Paired-ness of the reads is ambiguous', file=sys.stderr)
     if paired_poll[True] > paired_poll[False]:
         is_paired = True
     else:
@@ -108,7 +106,7 @@ def count_gff(bam_file, gff_file, filter_mapq=False):
 
     # intersect and count
     bam_count = 0.0
-    p = subprocess.Popen('intersectBed -split -u -bed -abam %s -b %s' % (bam_file,gff_file), shell=True, stdout=subprocess.PIPE)
+    p = subprocess.Popen('bedtools intersect -split -u -bed -abam %s -b %s' % (bam_file,gff_file), shell=True, stdout=subprocess.PIPE)
     for line in p.stdout:
         a = line.split('\t')
         if is_paired:
@@ -132,7 +130,7 @@ def count_gtf(bam_file, ref_gtf, filter_mapq=False):
     ref_bam_fd, ref_bam_file = tempfile.mkstemp(dir='%s/research/scratch/temp' % os.environ['HOME'])
 
     # intersect
-    subprocess.call('intersectBed -abam %s -b %s > %s' % (bam_file, ref_gtf, ref_bam_file), shell=True)
+    subprocess.call('bedtools intersect -abam %s -b %s > %s' % (bam_file, ref_gtf, ref_bam_file), shell=True)
 
     # count
     bam_count = count(ref_bam_file, filter_mapq)
@@ -156,7 +154,7 @@ def segemehl_multimap_max(bam_in):
     if optr_i == -1:
         # what's the default?
         multimap_max = 20
-    else:            
+    else:
         optr_start = optr_i+2
 
         # get past possible initial spaces
