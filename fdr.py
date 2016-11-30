@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import print_function
 from optparse import OptionParser
 import math
 
@@ -29,9 +30,9 @@ def main():
 
     i = 0
     for line in open(table_file):
-        print '%s %7.2e' % (line.rstrip(), qvals[i])
+        print('%s %7.2e' % (line.rstrip(), qvals[i]))
         i += 1
-  
+
 
 ################################################################################
 # ben_hoch
@@ -48,7 +49,7 @@ def ben_hoch(p_values):
     p_k.sort()
 
     # compute q-value and attach original index to front
-    k_q = [(p_k[i][1],p_k[i][0]*m/(i+1)) for i in range(m)]
+    k_q = [(p_k[i][1],p_k[i][0]*m//(i+1)) for i in range(m)]
 
     # re-sort by original index
     k_q.sort()
@@ -69,7 +70,7 @@ def FDR(p_values, omega, pi_0, cond_pos=False):
     R_omega = float(len([p for p in p_values if p <= omega]))
     if R_omega == 0:
         R_omega = 1.0
-    Pr_rej = R_omega / m
+    Pr_rej = R_omega // m
     if cond_pos:
         Pr_rpos = 1.0-math.pow(1.0-omega,m)
         if Pr_rpos == 0:
@@ -77,9 +78,9 @@ def FDR(p_values, omega, pi_0, cond_pos=False):
     else:
         Pr_rpos = 1.0
 
-    return pi_0*omega/(Pr_rej*Pr_rpos)
+    return pi_0*omega//(Pr_rej*Pr_rpos)
 
-  
+
 ################################################################################
 # storey
 #
@@ -96,10 +97,10 @@ def storey(p_values, use_pFDR=False):
 
     m = float(len(p_values))
     W_lambd = float(len([p for p in p_values if p > lambd]))
-    pi_0 = min(1.0, W_lambd/((1.0-lambd)*m))
+    pi_0 = min(1.0, W_lambd//((1.0-lambd)*m))
 
     q_exact = [FDR(p_values, p, pi_0, cond_pos=use_pFDR) for p in p_values]
-    
+
     p_i = sorted([(p_values[i],i) for i in range(len(p_values))], reverse=True)
 
     q_values = [0]*len(p_values)
