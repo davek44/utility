@@ -68,7 +68,7 @@ def main():
 # Launch and manage multiple SLURM jobs in parallel, using only one 'sacct'
 # call per
 ################################################################################
-def multi_run(jobs, max_proc=None, verbose=False):
+def multi_run(jobs, max_proc=None, verbose=False, sleep_time=30):
     total = len(jobs)
     finished = 0
     running = 0
@@ -86,16 +86,16 @@ def multi_run(jobs, max_proc=None, verbose=False):
                 print(jobs[finished+running].job_name, jobs[finished+running].cmd, file=sys.stderr)
 
             # find it
-            time.sleep(5)
+            time.sleep(10)
             if not jobs[finished+running].update_status():
-                time.sleep(10)
+                time.sleep(20)
 
             # save it
             active_jobs.append(jobs[finished+running])
             running += 1
 
         # sleep
-        time.sleep(30)
+        time.sleep(sleep_time)
 
         # update all statuses
         multi_update_status(active_jobs)
@@ -118,7 +118,7 @@ def multi_run(jobs, max_proc=None, verbose=False):
     # wait for all to finish
     while active_jobs:
         # sleep
-        time.sleep(30)
+        time.sleep(sleep_time)
 
         # update all statuses
         multi_update_status(active_jobs)
