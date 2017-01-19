@@ -25,7 +25,7 @@ def main():
 
     if fastq_file[-3:] == '.gz':
         fastq_in = gzip.open(fastq_file, 'rt')
-    elif fastq_file[-3:] == '.bz2':
+    elif fastq_file[-4:] == '.bz2':
         fastq_in = bz2.open(fastq_file, 'rt')
     else:
         fastq_in = open(fastq_file)
