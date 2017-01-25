@@ -21,6 +21,8 @@ def main():
     (options,args) = parser.parse_args()
 
     sam_in = pysam.AlignmentFile('-', 'r')
+    write_header(sam_in.header)
+
     sam_out = pysam.AlignmentFile('-', 'w', template=sam_in)
 
     last_id = None
@@ -45,6 +47,19 @@ def main():
 
             # update read id
             last_id = read_id
+
+    sam_in.close()
+    sam_out.close()
+
+def write_header(header):
+    hd = header['HD']
+    print('@HD\tVN:%s\tSO:%s' % (hd['VN'], hd['SO']))
+
+    for sq in header['SQ']:
+        print('@SQ\tSN:%s\tLN:%d' % (sq['SN'],sq['LN']))
+
+    pg = header['PG'][0]
+    print('@PG\tID:%s\tPN:%s\tVN:%s\tCL:%s' % (pg['ID'],pg['PN'],pg['VN'],pg['CL']), flush=True)
 
 
 def output_read(sam_out, read_aligns):
