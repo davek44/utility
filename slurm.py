@@ -206,7 +206,8 @@ class Job:
 
         print('#!/bin/sh\n', file=sbatch_out)
         print('#SBATCH -p %s' % self.queue, file=sbatch_out)
-        print('#SBATCH -n %d' % self.cpu, file=sbatch_out)
+        print('#SBATCH -n 1', file=sbatch_out)
+        print('#SBATCH -c %d' % self.cpu, file=sbatch_out)
         if self.job_name:
             print('#SBATCH -J %s' % self.job_name, file=sbatch_out)
         if self.out_file:
