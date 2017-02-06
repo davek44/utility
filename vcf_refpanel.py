@@ -49,6 +49,9 @@ def main():
 
     chroms = set(df_vcf.chr)
     for chrom in chroms:
+        # clean up past views
+        gc.collect()
+
         # filter VCF table for chromosome
         df_vcf_chrom = df_vcf[df_vcf.chr == chrom]
 
@@ -80,10 +83,6 @@ def main():
 
         # print
         match_valid = match_asis | match_flip
-        df_vcf_chrom_shared.loc[match_valid].to_csv(vcf_out, sep='\t', index=False, header=False)
-        # for _, snp in df_vcf_chrom_shared.loc[match_valid].iterrows():
-        #     # print(snp)
-        #     print_snp(snp)
 
     # close output VCF
     vcf_out.close()
