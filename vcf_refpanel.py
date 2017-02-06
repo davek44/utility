@@ -52,13 +52,16 @@ def main():
         # clean up past views
         gc.collect()
 
-        # filter VCF table for chromosome
-        df_vcf_chrom = df_vcf[df_vcf.chr == chrom]
-
         # read reference chromosome table
         chrom_num = chrom[3:]
         bim_chrom = '%s.%s.bim' % (options.refpanel_prefix, chrom_num)
+        if not os.path.isfile(bim_chrom):
+            print('Skipping %s' % chrom)
+            break
         df_ref_chrom = pd.read_table(bim_chrom, names=['chr', 'id', 'z', 'pos', 'ref', 'alt'])
+
+        # filter VCF table for chromosome
+        df_vcf_chrom = df_vcf[df_vcf.chr == chrom]
 
         # determine shared positions
         positions_vcf_shared = np.in1d(df_vcf_chrom.pos, df_ref_chrom.pos)
