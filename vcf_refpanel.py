@@ -57,17 +57,17 @@ def main():
         bim_chrom = '%s.%s.bim' % (options.refpanel_prefix, chrom_num)
         if not os.path.isfile(bim_chrom):
             print('Skipping %s' % chrom)
-            break
+            continue
         df_ref_chrom = pd.read_table(bim_chrom, names=['chr', 'id', 'z', 'pos', 'ref', 'alt'])
 
         # filter VCF table for chromosome
-        df_vcf_chrom = df_vcf[df_vcf.chr == chrom]
+        df_vcf_chrom = df_vcf.loc[df_vcf.chr == chrom]
 
         # determine shared positions
         positions_vcf_shared = np.in1d(df_vcf_chrom.pos, df_ref_chrom.pos)
-        df_vcf_chrom_shared = df_vcf_chrom[positions_vcf_shared]
+        df_vcf_chrom_shared = df_vcf_chrom.loc[positions_vcf_shared]
         positions_ref_shared = np.in1d(df_ref_chrom.pos, df_vcf_chrom.pos)
-        df_ref_chrom_shared = df_ref_chrom[positions_ref_shared]
+        df_ref_chrom_shared = df_ref_chrom.loc[positions_ref_shared]
         
         # determine matching alleles
         match_ref = (np.array(df_vcf_chrom_shared.ref) == np.array(df_ref_chrom_shared.ref))
@@ -86,6 +86,7 @@ def main():
 
         # print
         match_valid = match_asis | match_flip
+        df_vcf_chrom_shared.loc[match_valid].to_csv(vcf_out, sep='\t', index=False, header=False)
 
     # close output VCF
     vcf_out.close()
