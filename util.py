@@ -31,11 +31,14 @@ def slurmify(cmds, mem_mb=None):
 # Execute the commands in the list 'cmds' in parallel, but
 # only running 'max_proc' at a time.
 ############################################################
-def exec_par(cmds, max_proc, verbose=False):
+def exec_par(cmds, max_proc=None, verbose=False):
     total = len(cmds)
     finished = 0
     running = 0
     p = []
+
+    if max_proc == None:
+        max_proc = len(cmds)
 
     if max_proc == 1:
         while finished < total:
