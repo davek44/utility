@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import print_function
 from optparse import OptionParser
 from numpy import array, empty
 from scipy.stats import norm
@@ -229,7 +230,7 @@ class fpkm_tracking:
         gene_i = self.name_or_index(gene)
             
         for j in range(len(self.experiments)):
-            print '%-15s %8.3f' % (self.experiments[j], self.expr[gene_i,j])
+            print('%-15s %8.3f' % (self.experiments[j], self.expr[gene_i,j]))
 
 
     ############################################################################
