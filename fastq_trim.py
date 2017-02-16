@@ -17,10 +17,11 @@ def main():
     parser = OptionParser(usage)
     (options,args) = parser.parse_args()
 
-    if len(args) != 1:
-        parser.error('Must provide FASTQ file')
+    if len(args) != 2:
+        parser.error('Must provide trim length and FASTQ file')
     else:
-        fastq_file = args[0]
+        trim_length = int(args[0])
+        fastq_file = args[1]
 
     if fastq_file[-3:] == '.gz':
         fastq_in = gzip.open(fastq_file, 'rt')
@@ -29,19 +30,19 @@ def main():
     else:
         fastq_in = open(fastq_file)
 
-    header = fastq_in.readline()
+    header = fastq_in.readline().rstrip()
     while header:
-        seq = fastq_in.readline()
-        mid = fastq_in.readline()
-        qual = fastq_in.readline()
+        seq = fastq_in.readline().rstrip()
+        mid = fastq_in.readline().rstrip()
+        qual = fastq_in.readline().rstrip()
 
         # trim
         seq = seq[:trim_length]
         qual = qual[:trim_length]                  
 
-        print('%s%s%s%s' % (header,seq,mid,qual), end='')
+        print('%s\n%s\n%s\n%s' % (header,seq,mid,qual))
 
-        header = fastq_in.readline()
+        header = fastq_in.readline().rstrip()
 
     fastq_in.close()
 
