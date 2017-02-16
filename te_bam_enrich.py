@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from optparse import OptionParser
 from scipy.stats import binom
-import gzip, os, pdb, random, subprocess, sys, tempfile
+import glob, os, pdb, random, subprocess, sys, tempfile
 import pysam
 import bedtools, gff, stats
 
@@ -257,13 +257,18 @@ def count_te_fragments(bam_file, te_gff, strand_split=False):
     multi_maps = {}
     paired_poll = {False:0, True:0}
     for aligned_read in pysam.Samfile(bam_file, 'rb'):
-        if aligned_read.is_paired:
-            num_fragments += 0.5/aligned_read.opt('NH')
-        else:
-            num_fragments += 1.0/aligned_read.opt('NH')
+        try:
+            nh = aligned_read.get_tag('NH')
+        except KeyError:
+            nh = 1
 
-        if aligned_read.opt('NH') > 1:
-            multi_maps[aligned_read.qname] = aligned_read.opt('NH')
+        if aligned_read.is_paired:
+            num_fragments += 0.5/nh
+        else:
+            num_fragments += 1.0/nh
+
+        if nh > 1:
+            multi_maps[aligned_read.qname] = nh
 
         paired_poll[aligned_read.is_paired] += 1
 
