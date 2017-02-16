@@ -21,7 +21,7 @@ def main():
     parser.add_option('-f', dest='fasta_file', default='%s/research/common/data/genomes/hg19/sequence/hg19.fa' % os.environ['HOME'], help='Fasta file with entries named according to the first column of the gff file [Default: %default]')
     parser.add_option('-g', dest='gene_too', default=False, action='store_true', help='Print transcript id and gene id [Default: %default]')
     #parser.add_option('--gtf', dest='gtf', action='store_true', default=False, help='Input file is gtf and linked entries should be combined into a single sequence [Default: %default]')
-    parser.add_option('--head', dest='header_key', default='transcript_id', help='GFF key to be used to merge GFF entries and label the fasta headers [Default: %default]')
+    parser.add_option('--head', dest='header_key', default=None, help='GFF key to be used to merge GFF entries and label the fasta headers [Default: %default]')
     parser.add_option('-s', dest='split_lines', default=None, action='store_true', help='Split sequence across multiple lines [Default: %default]')
     parser.add_option('-x', dest='exon', action='store_true', default=False, help='Only include exon rows [Default: %default]')
     (options,args) = parser.parse_args()
@@ -77,7 +77,7 @@ def header_gff(header, seq, gff_file, options):
             except:
                 kv = {}
 
-            head_id = kv.get(options.header_key,a[8]+'_'+a[0]+':'+a[3]+'-'+a[4])
+            head_id = kv.get(options.header_key,a[0]+':'+a[3]+'-'+a[4])
             #head_id = kv.get(options.header_key,a[8])
 
             if options.gene_too:

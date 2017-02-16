@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import print_function
 from optparse import OptionParser
 import math, sys
 import cufflinks, gff, stats
@@ -38,7 +39,7 @@ def main():
         gene_transcripts = list(g2t[gene_id])
         gene_strand = transcripts[gene_transcripts[0]].strand
         if gene_strand not in ['+','-']:
-            print >> sys.stderr, 'WARNING: %s discluded for lack of strand' % gene_id
+            print('WARNING: %s discluded for lack of strand' % gene_id, file=sys.stderr)
             continue
 
         # choose TSS
@@ -83,19 +84,19 @@ def main():
         # print promoter from the tss
         if gene_strand == '+':
             if tss - options.upstream < 1:
-                print >> sys.stderr, 'WARNING: %s discluded for nearness to chromosome end' % gene_id
+                print('WARNING: %s discluded for nearness to chromosome end' % gene_id, file=sys.stderr)
             else:
                 tx = transcripts[promoter_tid]
                 cols = [tx.chrom, source, 'promoter', str(tss-options.upstream), str(tss+options.downstream), '.', tx.strand, '.', gff.kv_gtf(tx.kv)]
-                print '\t'.join(cols)
+                print('\t'.join(cols))
 
         else:
             if tss - options.downstream < 1:
-                print >> sys.stderr, 'WARNING: %s discluded for nearness to chromosome end' % gene_id
+                print('WARNING: %s discluded for nearness to chromosome end' % gene_id, file=sys.stderr)
             else:
                 tx = transcripts[promoter_tid]
                 cols = [tx.chrom, source, 'promoter', str(tss-options.downstream), str(tss+options.upstream), '.', tx.strand, '.', gff.kv_gtf(tx.kv)]
-                print '\t'.join(cols)
+                print('\t'.join(cols))
     
 
 ################################################################################

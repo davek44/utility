@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import print_function
 from optparse import OptionParser
 import os, sys
 import stats
@@ -288,24 +289,24 @@ def promoters(gtf_file, promoter_up=2000, promoter_down=0, output_file=None, gue
             if tx.exons[0].start-promoter_up >= 1:
                 cols = [tx.chrom, source, 'promoter', str(tx.exons[0].start-promoter_up), str(tx.exons[0].start+promoter_down), '.', tx.strand, '.', kv_gtf(tx.kv)]
             else:
-                print >> sys.stderr, 'WARNING: %s discluded for nearness to chromosome end' % tid
+                print('WARNING: %s discluded for nearness to chromosome end' % tid, file=sys.stderr)
                 cols = []
         elif tx.strand == '-':
             if tx.exons[-1].end-promoter_down >= 1:
                 cols = [tx.chrom, source, 'promoter', str(tx.exons[-1].end-promoter_down), str(tx.exons[-1].end+promoter_up), '.', tx.strand, '.', kv_gtf(tx.kv)]
             else:
-                print >> sys.stderr, 'WARNING: %s discluded for nearness to chromosome end' % tid
+                print('WARNING: %s discluded for nearness to chromosome end' % tid, file=sys.stderr)
                 cols = []
         else:
             if guess_strand:
-                print >> sys.stderr, 'WARNING: %s guessing forward strand' % tid
+                print('WARNING: %s guessing forward strand' % tid, file=sys.stderr)
                 cols = [tx.chrom, source, 'promoter', str(tx.exons[0].start-promoter_up), str(tx.exons[0].start+promoter_down), '.', '+', '.', kv_gtf(tx.kv)]
             else:
-                print >> sys.stderr, 'WARNING: %s discluded for lack of strand' % tid
+                print('WARNING: %s discluded for lack of strand' % tid, file=sys.stderr)
                 cols = []
 
         if cols:
-            print >> out, '\t'.join(cols)
+            print('\t'.join(cols), file=out)
 
     out.close()
 

@@ -26,24 +26,36 @@ def main():
     sam_out = pysam.AlignmentFile('-', 'w', template=sam_in)
 
     last_id = None
-    read_aligns = []
+    read1_aligns = []
+    read2_aligns = []
 
     for align in sam_in:
         if align.is_unmapped:
             # read stream concludes
-            output_read(sam_out, read_aligns)
-            read_aligns = []
+            output_read(sam_out, read1_aligns)
+            output_read(sam_out, read2_aligns)
+            read1_aligns = []
+            read2_aligns = []
 
         else:
-            read_id = (align.query_name, align.is_read1)
+            read_id = align.query_name
 
-            if read_id == last_id:
-                # read stream continues
-                read_aligns.append(align)
-            else:
+            if read_id != last_id:
                 # read stream concludes
-                output_read(sam_out, read_aligns)
-                read_aligns = []
+
+                # output
+                output_read(sam_out, read1_aligns)
+                output_read(sam_out, read2_aligns)
+
+                # reset
+                read1_aligns = []
+                read2_aligns = []
+
+            # read stream continues
+            if align.is_read1:
+                read1_aligns.append(align)
+            else:
+                read2_aligns.append(align)
 
             # update read id
             last_id = read_id
