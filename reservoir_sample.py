@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from optparse import OptionParser
 import random
+import sys
 
 ################################################################################
 # reservoir_sample.py
@@ -27,7 +28,10 @@ def main():
 
     reservoir = ['']*sample_num
 
-    input_in = open(input_file)
+    if input_file in ['-','stdin']:
+        input_in = sys.stdin
+    else:
+        input_in = open(input_file)
 
     if options.header:
         print(input_in.readline(), end='')
