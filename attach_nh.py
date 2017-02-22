@@ -40,7 +40,7 @@ def main():
         else:
             read_id = align.query_name
 
-            if read_id != last_id:
+            if not match_id(read_id, last_id, align.is_paired):
                 # read stream concludes
 
                 # output
@@ -63,6 +63,24 @@ def main():
     sam_in.close()
     sam_out.close()
 
+
+def match_id(id1, id2, paired):
+    ''' Match read_id's.
+
+    First case handles most datasets.
+    Second case handles paired end datasets where they got fancy.
+    '''
+
+    return id1 == id2 or (paired and id1[:-1] == id2[:-1] and id1[-1] in '12' and id2[-1] in '12')
+
+
+def output_read(sam_out, read_aligns):
+    nh_tag = len(read_aligns)
+    for align in read_aligns:
+        align.set_tag('NH',nh_tag)
+        sam_out.write(align)
+
+
 def write_header(header):
     hd = header['HD']
     print('@HD\tVN:%s\tSO:%s' % (hd['VN'], hd['SO']))
@@ -72,13 +90,6 @@ def write_header(header):
 
     pg = header['PG'][0]
     print('@PG\tID:%s\tPN:%s\tVN:%s\tCL:%s' % (pg['ID'],pg['PN'],pg['VN'],pg['CL']), flush=True)
-
-
-def output_read(sam_out, read_aligns):
-    nh_tag = len(read_aligns)
-    for align in read_aligns:
-        align.set_tag('NH',nh_tag)
-        sam_out.write(align)
 
 
 ################################################################################
