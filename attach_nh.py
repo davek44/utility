@@ -25,7 +25,7 @@ def main():
 
     sam_out = pysam.AlignmentFile('-', 'w', template=sam_in)
 
-    last_id = None
+    last_id = 'not a header'
     read1_aligns = []
     read2_aligns = []
 
