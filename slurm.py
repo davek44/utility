@@ -86,9 +86,9 @@ def multi_run(jobs, max_proc=None, verbose=False, sleep_time=30):
                 print(jobs[finished+running].job_name, jobs[finished+running].cmd, file=sys.stderr)
 
             # find it
-            time.sleep(10)
+            time.sleep(5)
             if not jobs[finished+running].update_status():
-                time.sleep(20)
+                time.sleep(10)
 
             # save it
             active_jobs.append(jobs[finished+running])
