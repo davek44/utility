@@ -176,6 +176,12 @@ def multi_update_status(jobs):
 
 
 class Job:
+    ''' class to manage SLURM jobs.
+
+    Notes:
+     -Since we have two types of machines in the GPU queue, I'm asking
+      for the machine type as "queue", and the "launch" method will handle it.
+    '''
     ############################################################
     # __init__
     ############################################################
@@ -205,7 +211,11 @@ class Job:
         sbatch_out = open(sbatch_tempf.name, 'w')
 
         print('#!/bin/sh\n', file=sbatch_out)
-        print('#SBATCH -p %s' % self.queue, file=sbatch_out)
+        if self.gpu > 0:
+            print('#SBATCH -p gpu', file=sbatch_out)
+            print('#SBATCH --gres=gpu:%s:%d\n' % (self.queue, self.gpu), file=sbatch_out)
+        else:
+            print('#SBATCH -p %s' % self.queue, file=sbatch_out)
         print('#SBATCH -n 1', file=sbatch_out)
         print('#SBATCH -c %d' % self.cpu, file=sbatch_out)
         if self.job_name:
@@ -218,8 +228,6 @@ class Job:
             print('#SBATCH --mem %d' % self.mem, file=sbatch_out)
         if self.time:
             print('#SBATCH --time %s' % self.time, file=sbatch_out)
-        if self.gpu > 0:
-            print('#SBATCH --gres=gpu:tesla:%d\n' % self.gpu, file=sbatch_out)
         print(self.cmd, file=sbatch_out)
 
         sbatch_out.close()
