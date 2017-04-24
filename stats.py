@@ -84,7 +84,7 @@ def kld(P, Q):
 #
 # Output:
 #  predts:       Array of predictions
-#  
+#
 ################################################################################
 def lowess_predict(lowess_model, exog):
     # attach index and sort
@@ -94,7 +94,7 @@ def lowess_predict(lowess_model, exog):
     pred_index = []
     i_exog = 0
     i_model = 0
-    
+
     while i_exog < len(exog_index) and i_model < len(lowess_model):
 
         # we're past the value; try to predict
@@ -257,7 +257,7 @@ def mean(ls, null=None):
     else:
         return float(sum(ls)) / float(len(ls))
 
-    
+
 ############################################################
 # mean_sd
 #
@@ -288,7 +288,7 @@ def mi_parmigene(array1, array2, debug=False):
 
     # print headers
     print >> df_out, 'A B'
-    
+
     # check list lengths
     length = len(df_dict['A'])
     if length != len(df_dict['B']):
@@ -346,11 +346,11 @@ def normalize(ls):
     return [l/ls_sum for l in ls]
 
 
-############################################################
+################################################################################
 # quantile
 #
 # Return the value at the quantile given.
-############################################################
+################################################################################
 def quantile(ls, q):
     sls = sorted(ls)
 
@@ -366,11 +366,41 @@ def quantile(ls, q):
     return qval
 
 
-############################################################
+################################################################################
+# quantile_indexes
+#
+# Return a list of lists of indexes referring to data points in the
+#  corresponding quantiles.
+################################################################################
+def quantile_indexes(values, numq):
+    # obtain indexes sorted by value
+    indexes_sorted = np.argsort(values)
+
+    # determine max index of quantiles
+    quantile_maxes = np.linspace(0, len(values), numq+1).astype('int')[1:]
+
+    # initialize data structure
+    quant_indexes = []
+    for qmi in range(numq):
+        quant_indexes.append([])
+
+    qmi = 0
+    for i in range(len(values)):
+        if i >= quantile_maxes[qmi]:
+            # next quantile
+            qmi += 1
+
+        # append original index to this quantile's list
+        quant_indexes[qmi].append(indexes_sorted[i])
+
+    return quant_indexes
+
+
+################################################################################
 # sd
 #
 # Return the standard deviation of a list
-############################################################
+################################################################################
 def sd(ls):
     return math.sqrt(variance(ls))
 
