@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from __future__ import print_function
 from optparse import OptionParser
-import os, sys
+import os, subprocess, sys
 import stats
 
 ################################################################################
@@ -96,7 +96,7 @@ def extend(gtf_file, extend_5p=2000, extend_3p=2000, output_file=None):
 #
 # Given a gtf file, return a mapping of gene_id's to sets of transcript_id's
 ################################################################################
-def g2t(gtf_file):
+def g2t(gtf_file, feature=None):
     d = {}
 
     gtf_in = open(gtf_file)
@@ -106,11 +106,11 @@ def g2t(gtf_file):
     while line[:2] == '##':
         line = gtf_in.readline()
 
-    while line:
+    for line in gtf_in:
         a = line.split('\t')
-        kv = gtf_kv(a[8])
-        d.setdefault(kv['gene_id'],set()).add(kv['transcript_id'])
-        line = gtf_in.readline()
+        if feature is None or a[2] == feature:
+            kv = gtf_kv(a[8])
+            d.setdefault(kv['gene_id'],set()).add(kv['transcript_id'])
 
     return d
 
@@ -273,7 +273,7 @@ def length_filter(ref_gtf, filter_gtf, spread_lower, spread_upper, verbose=False
 #
 # Given a gtf file, find the promoters
 ################################################################################
-def promoters(gtf_file, promoter_up=2000, promoter_down=0, output_file=None, guess_strand=False):
+def promoters(gtf_file, promoter_up=2000, promoter_down=0, output_file=None, guess_strand=False, resort=False):
     if not output_file:
         gtf_base = os.path.splitext(gtf_file)[0]
         output_file = '%s_prom.gtf' % gtf_base
@@ -309,6 +309,11 @@ def promoters(gtf_file, promoter_up=2000, promoter_down=0, output_file=None, gue
             print('\t'.join(cols), file=out)
 
     out.close()
+
+    if resort:
+        resort_file = '%s.sort' % output_file
+        subprocess.call('bedtools sort -i %s > %s' % (output_file, resort_file), shell=True)
+        os.rename(resort_file, output_file)
 
 
 ################################################################################
@@ -484,12 +489,19 @@ def three_prime(gtf_file, upstream=0, downstream=2000, output_file=None):
 #
 # Given a gtf file, return a mapping of transcript to gene id's
 ################################################################################
-def t2g(gtf_file='%s/research/common/data/lncrna/lnc_catalog.gtf' % os.environ['HOME']):
+def t2g(gtf_file, feature=None):
     d = {}
-    for line in open(gtf_file):
+
+    # ignore header
+    line = gtf_in.readline()
+    while line[:2] == '##':
+        line = gtf_in.readline()
+
+    for line in gtf_in:
         a = line.split('\t')
-        kv = gtf_kv(a[8])
-        d[kv['transcript_id']] = kv['gene_id']
+        if features is None or a[2] == feature:
+            kv = gtf_kv(a[8])
+            d[kv['transcript_id']] = kv['gene_id']
     return d
 
 
