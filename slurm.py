@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import print_function
 from optparse import OptionParser
 import os, sys, subprocess, tempfile, time
 
@@ -86,9 +87,9 @@ def multi_run(jobs, max_proc=None, verbose=False, sleep_time=30):
                 print(jobs[finished+running].job_name, jobs[finished+running].cmd, file=sys.stderr)
 
             # find it
-            time.sleep(5)
+            time.sleep(3)
             if not jobs[finished+running].update_status():
-                time.sleep(10)
+                time.sleep(5)
 
             # save it
             active_jobs.append(jobs[finished+running])
@@ -182,9 +183,7 @@ class Job:
      -Since we have two types of machines in the GPU queue, I'm asking
       for the machine type as "queue", and the "launch" method will handle it.
     '''
-    ############################################################
-    # __init__
-    ############################################################
+
     def __init__(self, cmd, job_name, out_file=None, err_file=None, queue='general', cpu=1, mem=None, time=None, gpu=0):
         self.cmd = cmd
         self.job_name = job_name
@@ -200,12 +199,34 @@ class Job:
         self.status = None
 
 
-    ############################################################
-    # launch
-    #
-    # Make an sbatch file, launch it, and save the job id.
-    ############################################################
+    def flash(self):
+        ''' Determine if the job can run on the flash queue by parsing the time. '''
+
+        day_split = self.time.split('-')
+        if len(day_split) == 2:
+            days, hms = day_split
+        else:
+            days = 0
+            hms = day_split[0]
+
+        hms_split = hms.split(':')
+        if len(hms_split) == 3:
+            hours, mins, secs = hms_split
+        elif len(hms_split) == 2:
+            hours = 0
+            mins, secs = hms_split
+        else:
+            print('Cannot parse time: ', self.time, file=sys.stderr)
+            exit(1)
+        
+        hours_sum = 24*int(days) + int(hours) + float(mins)/60
+        
+        return hours_sum <= 4
+        
+
     def launch(self):
+        ''' Make an sbatch file, launch it, and save the job id. '''
+
         # make sbatch script
         sbatch_tempf = tempfile.NamedTemporaryFile()
         sbatch_out = open(sbatch_tempf.name, 'w')
@@ -239,13 +260,9 @@ class Job:
         self.id = int(launch_str.split()[3])
 
 
-    ############################################################
-    # update_status
-    #
-    # Use 'sacct' to update the job's status. Return True if
-    # found and False if not.
-    ############################################################
     def update_status(self):
+        ''' Use 'sacct' to update the job's status. Return True if found and False if not. '''
+
         status = None
 
         attempt = 0
