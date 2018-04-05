@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from __future__ import print_function
 from optparse import OptionParser
-import os, sys
+import os, subprocess, sys
 import stats
 
 ################################################################################
@@ -273,7 +273,7 @@ def length_filter(ref_gtf, filter_gtf, spread_lower, spread_upper, verbose=False
 #
 # Given a gtf file, find the promoters
 ################################################################################
-def promoters(gtf_file, promoter_up=2000, promoter_down=0, output_file=None, guess_strand=False):
+def promoters(gtf_file, promoter_up=2000, promoter_down=0, output_file=None, guess_strand=False, resort=False):
     if not output_file:
         gtf_base = os.path.splitext(gtf_file)[0]
         output_file = '%s_prom.gtf' % gtf_base
@@ -309,6 +309,11 @@ def promoters(gtf_file, promoter_up=2000, promoter_down=0, output_file=None, gue
             print('\t'.join(cols), file=out)
 
     out.close()
+
+    if resort:
+        resort_file = '%s.sort' % output_file
+        subprocess.call('bedtools sort -i %s > %s' % (output_file, resort_file), shell=True)
+        os.rename(resort_file, output_file)
 
 
 ################################################################################
