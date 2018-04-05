@@ -31,7 +31,7 @@ def main():
 
     cmd = args[0]
 
-    main_job = Job(cmd, job_name=options.job_name, out_file=options.out_file, err_file=options.err_file, queue=options.queue, cpu=options.cpu, mem=options.mem, time=options.time)
+    main_job = Job(cmd, name=options.job_name, out_file=options.out_file, err_file=options.err_file, queue=options.queue, cpu=options.cpu, mem=options.mem, time=options.time)
     main_job.launch()
 
     if options.go:
@@ -55,7 +55,7 @@ def main():
         while main_job.update_status() and main_job.status in ['PENDING','RUNNING']:
             time.sleep(30)
 
-        print('%s %s' % (main_job.job_name, main_job.status), file=sys.stderr)
+        print('%s %s' % (main_job.name, main_job.status), file=sys.stderr)
 
         # delete sbatch
         main_job.clean()
@@ -83,7 +83,7 @@ def multi_run(jobs, max_proc=None, verbose=False, sleep_time=30):
             # launch
             jobs[finished+running].launch()
             if verbose:
-                print(jobs[finished+running].job_name, jobs[finished+running].cmd, file=sys.stderr)
+                print(jobs[finished+running].name, jobs[finished+running].cmd, file=sys.stderr)
 
             # find it
             time.sleep(5)
@@ -107,7 +107,7 @@ def multi_run(jobs, max_proc=None, verbose=False, sleep_time=30):
                 active_jobs_new.append(active_jobs[i])
             else:
                 if verbose:
-                    print('%s %s' % (active_jobs[i].job_name, active_jobs[i].status), file=sys.stderr)
+                    print('%s %s' % (active_jobs[i].name, active_jobs[i].status), file=sys.stderr)
 
                 running -= 1
                 finished += 1
@@ -130,7 +130,7 @@ def multi_run(jobs, max_proc=None, verbose=False, sleep_time=30):
                 active_jobs_new.append(active_jobs[i])
             else:
                 if verbose:
-                    print('%s %s' % (active_jobs[i].job_name, active_jobs[i].status), file=sys.stderr)
+                    print('%s %s' % (active_jobs[i].name, active_jobs[i].status), file=sys.stderr)
 
                 running -= 1
                 finished += 1
@@ -185,9 +185,9 @@ class Job:
     ############################################################
     # __init__
     ############################################################
-    def __init__(self, cmd, job_name, out_file=None, err_file=None, queue='general', cpu=1, mem=None, time=None, gpu=0):
+    def __init__(self, cmd, name, out_file=None, err_file=None, queue='general', cpu=1, mem=None, time=None, gpu=0):
         self.cmd = cmd
-        self.job_name = job_name
+        self.name = name
         self.out_file = out_file
         self.err_file = err_file
         self.queue = queue
@@ -218,8 +218,8 @@ class Job:
             print('#SBATCH -p %s' % self.queue, file=sbatch_out)
         print('#SBATCH -n 1', file=sbatch_out)
         print('#SBATCH -c %d' % self.cpu, file=sbatch_out)
-        if self.job_name:
-            print('#SBATCH -J %s' % self.job_name, file=sbatch_out)
+        if self.name:
+            print('#SBATCH -J %s' % self.name, file=sbatch_out)
         if self.out_file:
             print('#SBATCH -o %s' % self.out_file, file=sbatch_out)
         if self.err_file:
