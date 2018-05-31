@@ -400,19 +400,19 @@ def splice_sites(gtf_file, exon=0, intron=2, output_file=None):
             if g.strand == '+':
                 # donor
                 cols = [g.chrom, source, 'donor', str(g.exons[i].end-exon+1), str(g.exons[i].end+intron), '.', g.strand, '.', kv_gtf(g.kv)]
-                print >> out, '\t'.join(cols)
+                print('\t'.join(cols), file=out)
 
                 # acceptor
                 cols = [g.chrom, source, 'acceptor', str(g.exons[i+1].start-intron), str(g.exons[i+1].start+exon-1), '.', g.strand, '.', kv_gtf(g.kv)]
-                print >> out, '\t'.join(cols)
+                print('\t'.join(cols), file=out)
             else:
                # donor
                cols = [g.chrom, source, 'donor', str(g.exons[i+1].start-intron), str(g.exons[i+1].start+exon-1), '.', g.strand, '.', kv_gtf(g.kv)]
-               print >> out, '\t'.join(cols)
+               print('\t'.join(cols), file=out)
 
                # acceptor
                cols = [g.chrom, source, 'acceptor', str(g.exons[i].end-exon+1), str(g.exons[i].end+intron), '.', g.strand, '.', kv_gtf(g.kv)]
-               print >> out, '\t'.join(cols)
+               print('\t'.join(cols), file=out)
 
     out.close()
 
