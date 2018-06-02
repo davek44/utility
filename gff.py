@@ -384,7 +384,7 @@ def span_transcript(gtf_file, output_file=None):
 #
 # Given a gtf file, find the splice sites
 ################################################################################
-def splice_sites(gtf_file, exon=0, intron=2, output_file=None):
+def splice_sites(gtf_file, exon=0, intron=2, output_file=None, resort=False):
     if not output_file:
         gtf_base = os.path.splitext(gtf_file)[0]
         output_file = '%s_splice.gff' % gtf_base
@@ -415,6 +415,12 @@ def splice_sites(gtf_file, exon=0, intron=2, output_file=None):
                print('\t'.join(cols), file=out)
 
     out.close()
+
+    if resort:
+        resort_file = '%s.sort' % output_file
+        subprocess.call('bedtools sort -i %s > %s' % (output_file, resort_file), shell=True)
+        os.rename(resort_file, output_file)
+
 
 
 ################################################################################
