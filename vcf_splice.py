@@ -19,6 +19,9 @@ def main():
     parser = OptionParser(usage)
     parser.add_option('-g', dest='splice_gff_file', default='%s/genes/gencode28/gencode.v28.basic.annotation.splice.gff' % os.environ['HG38'])
     # parser.add_option('-g', dest='splice_gff_file', default='%s/genes/gencode28/gencode_basic_splice.gff' % os.environ['HG19'])
+    parser.add_option('-t', dest='filter_t',
+        default=None, type='int',
+        help='Filter out variants less than the given distance threshold [Default: %default]')
     (options,args) = parser.parse_args()
 
     if len(args) != 2:
@@ -47,11 +50,15 @@ def main():
 
     for closest_a in in_vcf_bedtool.closest(splice_bedtool, d=True, t='first'):
         a = closest_a[:8]
+        splice_distance = int(closest_a[-1])
         if a[-1] == '.':
-            a[-1] = 'SS=%s' % closest_a[-1]
+            a[-1] = 'SS=%s' % str(splice_distance)
         else:
-            a[-1] += ';SS=%s' % closest_a[-1]
-        print('\t'.join(a), file=out_vcf_open)
+
+            a[-1] += ';SS=%s' % str(splice_distance)
+
+        if options.filter_t is None or splice_distance >= options.filter_t:
+            print('\t'.join(a), file=out_vcf_open)
 
     # close
     out_vcf_open.close()
