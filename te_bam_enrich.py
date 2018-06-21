@@ -36,7 +36,7 @@ def main():
     parser.add_option('-f', dest='filter_gff', help='Filter the TEs by overlap with genes in the given gff file [Default: %default]')
     parser.add_option('-g', dest='genome', default='HG19', help='Genome directory to obtain lengths from [Default: %default]')
     parser.add_option('-m', dest='mapq', default=False, action='store_true', help='Consider only reads with mapq>0 [Default: %default]')
-    parser.add_option('-r', dest='repeats_gff', default='%s/hg19.fa.out.tp.gff' % os.environ['MASK'])
+    parser.add_option('-r', dest='repeats_gff', default='%s/repeatmasker/hg19.fa.out.tp.gff' % os.environ['HG19'])
     parser.add_option('-s', dest='strand_split', default=False, action='store_true', help='Split statistics by strand [Default: %default]')
     (options,args) = parser.parse_args()
 
