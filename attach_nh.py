@@ -21,7 +21,9 @@ def main():
     (options,args) = parser.parse_args()
 
     sam_in = pysam.AlignmentFile('-', 'r')
-    write_header(sam_in.header)
+
+    # previously required, but apparently not anymore
+    # write_header(sam_in.header)
 
     sam_out = pysam.AlignmentFile('-', 'w', template=sam_in)
 
