@@ -68,11 +68,10 @@ def main():
 ################################################################################
 # multi_run
 #
-#
 # Launch and manage multiple SLURM jobs in parallel, using only one 'sacct'
 # call per
 ################################################################################
-def multi_run(jobs, max_proc=None, verbose=False, sleep_time=30):
+def multi_run(jobs, max_proc=None, verbose=False, launch_sleep=2, update_sleep=20):
     total = len(jobs)
     finished = 0
     running = 0
@@ -86,20 +85,16 @@ def multi_run(jobs, max_proc=None, verbose=False, sleep_time=30):
         while running < max_proc and finished+running < total:
             # launch
             jobs[finished+running].launch()
+            time.sleep(launch_sleep)
             if verbose:
                 print(jobs[finished+running].name, jobs[finished+running].cmd, file=sys.stderr)
-
-            # find it
-            time.sleep(3)
-            if not jobs[finished+running].update_status():
-                time.sleep(5)
 
             # save it
             active_jobs.append(jobs[finished+running])
             running += 1
 
         # sleep
-        time.sleep(sleep_time)
+        time.sleep(update_sleep)
 
         # update all statuses
         multi_update_status(active_jobs)
@@ -122,7 +117,7 @@ def multi_run(jobs, max_proc=None, verbose=False, sleep_time=30):
     # wait for all to finish
     while active_jobs:
         # sleep
-        time.sleep(sleep_time)
+        time.sleep(update_sleep)
 
         # update all statuses
         multi_update_status(active_jobs)
@@ -147,16 +142,16 @@ def multi_run(jobs, max_proc=None, verbose=False, sleep_time=30):
 #
 # Update the status for multiple jobs at once.
 ################################################################################
-def multi_update_status(jobs):
+def multi_update_status(jobs, max_attempts=3, sleep_attempt=5):
     # reset all
     for j in jobs:
         j.status = None
 
     # try multiple times because sometimes it fails
     attempt = 0
-    while attempt < 3 and [j for j in jobs if j.status == None]:
+    while attempt < max_attempts and [j for j in jobs if j.status == None]:
         if attempt > 0:
-            time.sleep(10)
+            time.sleep(sleep_attempt)
 
         sacct_str = subprocess.check_output('sacct', shell=True)
         sacct_str = sacct_str.decode('UTF-8')
@@ -263,15 +258,15 @@ class Job:
         self.id = int(launch_str.split()[3])
 
 
-    def update_status(self):
+    def update_status(self, max_attempts=3, sleep_attempt=5):
         ''' Use 'sacct' to update the job's status. Return True if found and False if not. '''
 
         status = None
 
         attempt = 0
-        while attempt < 3 and status == None:
+        while attempt < max_attempts and status == None:
             if attempt > 0:
-                time.sleep(10)
+                time.sleep(sleep_attempt)
 
             sacct_str = subprocess.check_output('sacct', shell=True)
             sacct_str = sacct_str.decode('UTF-8')

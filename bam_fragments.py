@@ -2,6 +2,7 @@
 from __future__ import print_function
 from optparse import OptionParser
 import os, subprocess, tempfile
+import numpy as np
 import pysam
 
 ################################################################################
@@ -46,7 +47,11 @@ def count(bam_file, filter_mapq=False):
     bam_count = 0.0
 
     # process
-    bam_in = pysam.Samfile(bam_file, 'rb')
+    if os.path.splitext(bam_file)[1] == 'bam':
+        bam_in = pysam.AlignmentFile(bam_file, 'rb')
+    else:
+        bam_in = pysam.AlignmentFile(bam_file, 'rc')
+        
     for aligned_read in bam_in:
         if filter_mapq == False or aligned_read.mapq > 0:
             nh_tag = 1
@@ -58,7 +63,7 @@ def count(bam_file, filter_mapq=False):
             else:
                 bam_count += 1.0/nh_tag
 
-    return bam_count
+    return np.round(bam_count, 1)
 
 
 ################################################################################

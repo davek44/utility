@@ -2,3 +2,4 @@
 *.pyc
 r/*.r~
 .gitignore~
+._*

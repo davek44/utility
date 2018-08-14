@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from optparse import OptionParser
+import subprocess
 
 '''
 bim_vcf.py
@@ -13,7 +14,7 @@ Convert variants in a Plink .bim file to .vcf
 def main():
     usage = 'usage: %prog [options] <in_bim> <out_vcf>'
     parser = OptionParser(usage)
-    #parser.add_option()
+    parser.add_option('-z', dest='zip', default=False, action='store_true')
     (options,args) = parser.parse_args()
 
     if len(args) != 2:
@@ -43,6 +44,9 @@ def main():
         print('\t'.join(cols), file=out_vcf_open)
 
     out_vcf_open.close()
+
+    if options.zip:
+        subprocess.call('gzip -f %s' % out_vcf_file, shell=True)
 
 
 ################################################################################
