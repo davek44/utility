@@ -16,6 +16,7 @@ import gff
 def main():
     usage = 'usage: %prog [options] -k <key> <gtf file>'
     parser = OptionParser(usage)
+    parser.add_option('-c', dest='column', default=8, type='int')
     parser.add_option('-k', dest='key', help='Key to extract')
     parser.add_option('-l', dest='line_too', action='store_true', default=False, help='Print the line too [Default: %default]')
     (options,args) = parser.parse_args()
@@ -34,9 +35,9 @@ def main():
         keys = options.key.split(',')
 
     for line in gtf_open:
-        if not line.startswith('##'):
+        if not line.startswith('#'):
             a = line.split('\t')
-            kv = gff.gtf_kv(a[8])
+            kv = gff.gtf_kv(a[options.column])
 
             if options.line_too:
                 key_str = '\t'.join([kv.get(key,'-') for key in keys])
