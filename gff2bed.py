@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import print_function
 from optparse import OptionParser
 import gff, sys
 
@@ -32,7 +33,7 @@ def main():
             a = line.split('\t')
 
             cols = [a[0], str(int(a[3])-1), a[4], a[2], '0', a[6], '0', '0', '255,0,0', '1', str(int(a[4])-int(a[3])+1), '0']
-            print '\t'.join(cols)
+            print('\t'.join(cols))
     
 
 ################################################################################
