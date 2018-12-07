@@ -17,6 +17,7 @@ Convert a coverage HDF5 to BigWig.
 def main():
     usage = 'usage: %prog [options] <out_h5_file> <in_bw_file>'
     parser = OptionParser(usage)
+    parser.add_option('-c', dest='chr', default=None, help='Comma-separated chromosome list')
     parser.add_option('-v', dest='verbose', default=False, action='store_true')
     (options,args) = parser.parse_args()
 
@@ -31,8 +32,12 @@ def main():
     bw_out = pyBigWig.open(bw_file, 'w')
 
     # construct header
+    if options.chr is not None:
+        chroms = ['chr%s'%c for c in options.chr.split(',')]
+    else:
+        chroms = sorted(h5_in.keys())
+
     header = []
-    chroms = sorted(h5_in.keys())
     for chrom in chroms:
         # chromosome and length
         header.append((chrom,len(h5_in[chrom])))
