@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 from optparse import OptionParser
+import os
+import sys
 
 import h5py
 import numpy as np
@@ -20,6 +22,10 @@ def main():
         default='sum', help='Summary statistic [Default: %default]')
     parser.add_option('-v', dest='verbose',
         default=False, action='store_true')
+    parser.add_option('-w', dest='overwrite',
+        default=False, action='store_true')
+    parser.add_option('-z', dest='gzip',
+        default=False, action='store_true')
     (options,args) = parser.parse_args()
 
     if len(args) < 3:
@@ -27,6 +33,11 @@ def main():
     else:
         out_w5_file = args[0]
         in_w5_files = args[1:]
+
+    compression_args = {}
+    if options.gzip:
+        compression_args['compression'] = 'gzip'
+        compression_args['shuffle'] = True
 
     # open input wig5
     in_w5_opens = [h5py.File(iwf) for iwf in in_w5_files]
@@ -38,6 +49,8 @@ def main():
         in_keys |= in_w5_open.keys()
 
     # open output file
+    if os.path.isfile(out_w5_file) and not options.overwrite:
+        parser.error('%s exists. Please remove.' % out_w5_file)
     out_w5_open = h5py.File(out_w5_file, 'w')
 
     for out_key in in_keys:
@@ -48,7 +61,10 @@ def main():
         in_key_len = len(in_w5_opens[0][out_key])
         in_key_data = np.zeros((in_num,in_key_len), dtype='float32')
         for i in range(in_num):
-            in_key_data[i] = np.array(in_w5_opens[i][out_key])
+            if out_key in in_w5_opens[i]:
+                in_key_data[i] = np.array(in_w5_opens[i][out_key])
+            else:
+                print('%s missing %s' % (in_w5_files[i], out_key), file=sys.stderr)
 
         # summarize
         if options.sum_stat == 'sum':
@@ -59,7 +75,8 @@ def main():
             print('Cannot identify summary statistic %s' % options.sum_stat)
 
         # write
-        out_w5_open.create_dataset(out_key, data=out_key_data.astype('float16'), dtype='float16')
+        out_w5_open.create_dataset(out_key, data=out_key_data.astype('float16'),
+                                   dtype='float16', **compression_args)
 
     out_w5_open.close()
 
