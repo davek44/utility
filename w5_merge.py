@@ -57,9 +57,14 @@ def main():
         if options.verbose:
             print(out_key)
 
-        # read data
-        in_key_len = len(in_w5_opens[0][out_key])
+        # initialize array
+        for i in range(in_num):
+            if out_key in in_w5_opens[i]:
+                in_key_len = len(in_w5_opens[i][out_key])
+                break
         in_key_data = np.zeros((in_num,in_key_len), dtype='float32')
+
+        # read data
         for i in range(in_num):
             if out_key in in_w5_opens[i]:
                 in_key_data[i] = np.array(in_w5_opens[i][out_key])
