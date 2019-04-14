@@ -2,6 +2,7 @@
 from __future__ import print_function
 
 from optparse import OptionParser
+import gzip
 import random
 import sys
 
@@ -19,7 +20,10 @@ import sys
 def main():
     usage = 'usage: %prog [options] <sample_num> <input_file>'
     parser = OptionParser(usage)
-    parser.add_option('-d', dest='header', default=False, action='store_true')
+    parser.add_option('-d', dest='header',
+            default=False, action='store_true')
+    parser.add_option('-z', dest='gzip',
+            default=False, action='store_true')
     (options,args) = parser.parse_args()
 
     if len(args) != 2:
@@ -33,7 +37,10 @@ def main():
     if input_file in ['-','stdin']:
         input_in = sys.stdin
     else:
-        input_in = open(input_file)
+        if options.gzip:
+            input_in = gzip.open(input_file, 'rt')
+        else:
+            input_in = open(input_file)
 
     if options.header:
         print(input_in.readline(), end='')

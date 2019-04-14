@@ -16,7 +16,9 @@ import os, sys, subprocess, tempfile, time
 def main():
     usage = 'usage: %prog [options] arg'
     parser = OptionParser(usage)
-    parser.add_option('-g', dest='go', default=False, action='store_true', help='Don\'t wait for the job to finish [Default: %default]')
+    parser.add_option('-g', dest='go',
+            default=False, action='store_true',
+            help='Don\'t wait for the job to finish [Default: %default]')
 
     parser.add_option('-o', dest='out_file')
     parser.add_option('-e', dest='err_file')

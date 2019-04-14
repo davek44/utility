@@ -6,9 +6,9 @@ import numpy as np
 import pyBigWig
 
 '''
-h5_bw.py
+w5_bw.py
 
-Convert a coverage HDF5 to BigWig.
+Convert a coverage wiggle HDF5 to BigWig.
 '''
 
 ################################################################################
@@ -33,7 +33,7 @@ def main():
 
     # construct header
     if options.chr is not None:
-        chroms = ['chr%s'%c for c in options.chr]
+        chroms = ['chr%s'%c for c in options.chr.split(',')]
     else:
         chroms = sorted(h5_in.keys())
 
