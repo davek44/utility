@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 from optparse import OptionParser
+import gzip
 
 import h5py
 import numpy as np
 
 '''
-bg_h5.py
+bg_w5.py
 
 Convert a BedGraph to HDF5.
 '''
@@ -28,20 +29,37 @@ def main():
 
     # initialize chromosome arrays
     chrm_values = {}
+    chrm_counts = {}
     for line in open(genome_file):
         a = line.split()
         chrm = a[0]
         chrm_len = int(a[1])
         chrm_values[chrm] = np.zeros(chrm_len, dtype='float16')
+        chrm_counts[chrm] = np.zeros(chrm_len, dtype='uint8')
 
     # write bedgraph entries
-    for line in open(bg_file):
-        a = line.split()
-        chrm = a[0]
-        start = int(a[1])
-        end = int(a[2])
-        v = float(a[3])
-        chrm_values[chrm][start:end] += v
+    if bg_file[-3:] == '.gz':
+        bg_open = gzip.open(bg_file, 'rt')
+    else:
+        bg_open = open(bg_file)
+
+    for line in bg_open:
+        if not line.startswith('#'):
+            a = line.split()
+            if len(a) >= 4:
+                chrm = a[0]
+                start = int(a[1])
+                end = int(a[2])
+                v = float(a[3])
+                chrm_values[chrm][start:end] += v
+                chrm_counts[chrm][start:end] += 1
+
+    bg_open.close()
+
+    # take mean
+    for chrm in chrm_values:
+        chrm_values[chrm] = np.divide(chrm_values[chrm], chrm_counts[chrm])
+        chrm_values[chrm] = np.nan_to_num(chrm_values[chrm])
 
     # write gzipped into HDF5
     h5_out = h5py.File(hdf5_file, 'w')
