@@ -17,8 +17,10 @@ Convert a coverage wiggle HDF5 to BigWig.
 def main():
     usage = 'usage: %prog [options] <out_h5_file> <in_bw_file>'
     parser = OptionParser(usage)
-    parser.add_option('-c', dest='chr', default=None, help='Comma-separated chromosome list')
-    parser.add_option('-v', dest='verbose', default=False, action='store_true')
+    parser.add_option('-c', dest='chr', 
+        default=None, help='Comma-separated chromosome numbers')
+    parser.add_option('-v', dest='verbose',
+        default=False, action='store_true')
     (options,args) = parser.parse_args()
 
     if len(args) != 2:
