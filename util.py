@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from __future__ import print_function
+import pdb
 import operator, os, sys, subprocess, time
 
 ############################################################
@@ -55,12 +56,13 @@ def exec_par(cmds, max_proc=None, verbose=False):
                 if verbose:
                     print(cmds[finished+running], file=sys.stderr)
                 p.append(subprocess.Popen(cmds[finished+running], shell=True))
-                #print 'Running %d' % p[running].pid
+                # print('Running %d' % p[running].pid)
                 running += 1
 
             # are any jobs finished
             new_p = []
             for i in range(len(p)):
+                # print('POLLING', i, p[i].poll())
                 if p[i].poll() != None:
                     running -= 1
                     finished += 1
