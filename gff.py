@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from __future__ import print_function
 from optparse import OptionParser
-import os, subprocess, sys
+import os, string, subprocess, sys
 import stats
 
 ################################################################################
@@ -422,6 +422,14 @@ def splice_sites(gtf_file, exon=0, intron=2, output_file=None, resort=False):
         os.rename(resort_file, output_file)
 
 
+############################################################
+# rc
+#
+# Reverse complement sequence
+############################################################
+def rc(seq):
+    return seq.translate(string.maketrans("ATCGatcg","TAGCtagc"))[::-1]
+
 
 ################################################################################
 # read_genes
@@ -438,7 +446,7 @@ def read_genes(gtf_file, key_id='transcript_id', sort=True):
 
     # ignore header
     line = gtf_in.readline()
-    while line[:2] == '##':
+    while line[0] == '#':
         line = gtf_in.readline()
 
     while line:
@@ -448,10 +456,13 @@ def read_genes(gtf_file, key_id='transcript_id', sort=True):
             if not kv[key_id] in genes:
                 genes[kv[key_id]] = Gene(a[0], a[6], kv)
 
+            start = int(a[3])
+            end = int(a[4])
+    
             if a[2] == 'exon':
-                genes[kv[key_id]].add_exon(int(a[3]), int(a[4]), sort=sort)
+                genes[kv[key_id]].add_exon(start, end, sort=sort)
             elif a[2] == 'CDS':
-                genes[kv[key_id]].add_cds(int(a[3]), int(a[4]), sort=sort)
+                genes[kv[key_id]].add_cds(start, end, sort=sort)
 
         line = gtf_in.readline()
 
@@ -584,6 +595,24 @@ class Gene:
         if sort and len(self.exons) > 1 and self.exons[-2].end > start:
             #print >> sys.stderr, 'Warning: exons are not sorted - %s' % kv_gtf(self.kv)
             self.exons.sort()
+
+    def fasta_cds(self, fasta_open, stranded=False):
+        gene_seq = ''
+        for exon in self.cds:
+            exon_seq = fasta_open.fetch(self.chrom, exon.start-1, exon.end)
+            gene_seq += exon_seq
+        if stranded and self.strand == '-':
+            gene_seq = rc(gene_seq)
+        return gene_seq
+
+    def fasta_exons(self, fasta_open, stranded=False):
+        gene_seq = ''
+        for exon in self.exons:
+            exon_seq = fasta_open.fetch(self.chrom, exon.start-1, exon.end)
+            gene_seq += exon_seq
+        if stranded and self.strand == '-':
+            gene_seq = rc(gene_seq)
+        return gene_seq
 
     def tss(self):
         if self.strand == '-':
