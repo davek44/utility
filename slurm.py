@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from __future__ import print_function
 from optparse import OptionParser
-import os, sys, subprocess, tempfile, time
+import os, pdb, sys, subprocess, tempfile, time
 
 ################################################################################
 # slurm.py
@@ -184,11 +184,13 @@ class Job:
       for the machine type as "queue", and the "launch" method will handle it.
     '''
 
-    def __init__(self, cmd, name, out_file=None, err_file=None, queue='general', cpu=1, mem=None, time=None, gpu=0):
+    def __init__(self, cmd, name, out_file=None, err_file=None, sb_file=None,
+                 queue='standard', cpu=1, mem=None, time=None, gpu=0):
         self.cmd = cmd
         self.name = name
         self.out_file = out_file
         self.err_file = err_file
+        self.sb_file = sb_file
         self.queue = queue
         self.cpu = cpu
         self.mem = mem
@@ -228,13 +230,29 @@ class Job:
         ''' Make an sbatch file, launch it, and save the job id. '''
 
         # make sbatch script
-        sbatch_tempf = tempfile.NamedTemporaryFile()
-        sbatch_out = open(sbatch_tempf.name, 'w')
+        if self.sb_file is None:
+            sbatch_tempf = tempfile.NamedTemporaryFile()
+            sbatch_file = sbatch_tempf.name
+        else:
+            sbatch_file = self.sb_file
+        sbatch_out = open(sbatch_file, 'w')
 
-        print('#!/bin/sh\n', file=sbatch_out)
+        print('#!/bin/bash\n', file=sbatch_out)
         if self.gpu > 0:
-            print('#SBATCH -p gpu', file=sbatch_out)
-            print('#SBATCH --gres=gpu:%s:%d\n' % (self.queue, self.gpu), file=sbatch_out)
+            if self.queue == "":
+                gpu_str = 'gpu'
+                gres_str = '--gres=gpu'
+            elif self.queue == 'gpu24':
+                gpu_str = 'gpu24'
+                gres_str = '--gres=gpu'
+            elif self.queue == 'gpu96':
+                gpu_str = 'gpu96'
+                gres_str = '--gres=gpu'
+            else:
+                gpu_str = 'gpu'
+                gres_str = '--gres=gpu:%s' % self.queue
+            print('#SBATCH -p %s' % gpu_str, file=sbatch_out)
+            print('#SBATCH %s:%d\n' % (gres_str, self.gpu), file=sbatch_out)
         else:
             print('#SBATCH -p %s' % self.queue, file=sbatch_out)
         print('#SBATCH -n 1', file=sbatch_out)
@@ -254,7 +272,7 @@ class Job:
         sbatch_out.close()
 
         # launch it; check_output to get the id
-        launch_str = subprocess.check_output('sbatch %s' % sbatch_tempf.name, shell=True)
+        launch_str = subprocess.check_output('sbatch %s' % sbatch_file, shell=True)
 
         # e.g. "Submitted batch job 13861989"
         self.id = int(launch_str.split()[3])
