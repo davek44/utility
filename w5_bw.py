@@ -18,7 +18,7 @@ def main():
     usage = 'usage: %prog [options] <out_h5_file> <in_bw_file>'
     parser = OptionParser(usage)
     parser.add_option('-c', dest='chr', 
-        default=None, help='Comma-separated chromosome numbers')
+        default=None, help='Comma-separated chromosomes')
     parser.add_option('-v', dest='verbose',
         default=False, action='store_true')
     (options,args) = parser.parse_args()
@@ -30,12 +30,12 @@ def main():
         bw_file = args[1]
 
     # open files
-    h5_in = h5py.File(hdf5_file)
+    h5_in = h5py.File(hdf5_file, 'r')
     bw_out = pyBigWig.open(bw_file, 'w')
 
     # construct header
     if options.chr is not None:
-        chroms = ['chr%s'%c for c in options.chr.split(',')]
+        chroms = options.chr.split(',')
     else:
         chroms = sorted(h5_in.keys())
 
