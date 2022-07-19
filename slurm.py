@@ -171,7 +171,8 @@ def multi_update_status(jobs, max_attempts=3, sleep_attempt=5):
             # check call jobs for a match
             for j in jobs:
                 if line_id == j.id:
-                    j.status = a[5]
+                    # j.status = a[5] # original
+                    j.status = a[4] # cb2
 
         attempt += 1
 
@@ -191,7 +192,7 @@ class Job:
         self.out_file = out_file
         self.err_file = err_file
         self.sb_file = sb_file
-        self.queue = queue
+        self.queue = self.translate_gpu(queue)
         self.cpu = cpu
         self.mem = mem
         self.time = time
@@ -276,6 +277,20 @@ class Job:
 
         # e.g. "Submitted batch job 13861989"
         self.id = int(launch_str.split()[3])
+
+
+    def translate_gpu(self, queue_gpu):
+        """Translate concise GPU labels to their full versions,
+            or propagate the given label."""
+        translation = {
+            'p100': 'tesla_p100-pcie-16gb',
+            'tesla': 'tesla_p100-pcie-16gb',
+            'geforce': 'nvidia_geforce_gtx_1080_ti',
+            'gtx1080': 'nvidia_geforce_gtx_1080_ti',
+            'titan': 'titan_rtx',
+            'quadro': 'quadro_rtx_8000'
+        }
+        return translation.get(queue_gpu, queue_gpu)
 
 
     def update_status(self, max_attempts=3, sleep_attempt=5):
