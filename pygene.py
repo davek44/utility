@@ -180,12 +180,15 @@ class Gene:
   def __init__(self):
     self.transcripts = {}
     self.chrom = None
+    self.strand = None
     self.start = None
     self.end = None
 
   def add_transcript(self, tx_id, tx):
     self.transcripts[tx_id] = tx
     self.chrom = tx.chrom
+    self.strand = tx.strand
+    self.kv = tx.kv
 
   def span(self):
     tx_spans = [tx.span() for tx in self.transcripts.values()]
@@ -196,11 +199,12 @@ class Gene:
 
 
 class GTF:
-  def __init__(self, gtf_file):
+  def __init__(self, gtf_file, trim_dot=False):
     self.gtf_file = gtf_file
     self.genes = {}
     self.transcripts = {}
     self.utrs_defined = False
+    self.trim_dot = trim_dot
 
     self.read_gtf()
 
@@ -232,12 +236,16 @@ class GTF:
 
         # add/get transcript
         tx_id = kv['transcript_id']
+        if self.trim_dot:
+          tx_id = trim_dot(tx_id)
         if not tx_id in self.transcripts:
             self.transcripts[tx_id] = Transcript(chrom, strand, kv)
         tx = self.transcripts[tx_id]
 
         # add/get gene
         gene_id = kv['gene_id']
+        if self.trim_dot:
+          gene_id = trim_dot(gene_id)
         if not gene_id in self.genes:
           self.genes[gene_id] = Gene()
         self.genes[gene_id].add_transcript(tx_id, tx)
@@ -307,3 +315,10 @@ def kv_gtf(d):
       s += '%s "%s"; ' % (key,d[key])
 
   return s
+
+def trim_dot(gene_id):
+  """Trim the final dot suffix off a gene_id."""
+  dot_i = gene_id.rfind('.')
+  if dot_i != -1:
+    gene_id = gene_id[:dot_i]
+  return gene_id
