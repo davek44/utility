@@ -240,14 +240,8 @@ class Job:
 
         print('#!/bin/bash\n', file=sbatch_out)
         if self.gpu > 0:
-            if self.queue == "":
+            if self.queue == "" or self.queue == 'gpu':
                 gpu_str = 'gpu'
-                gres_str = '--gres=gpu'
-            elif self.queue == 'gpu24':
-                gpu_str = 'gpu24'
-                gres_str = '--gres=gpu'
-            elif self.queue == 'gpu96':
-                gpu_str = 'gpu96'
                 gres_str = '--gres=gpu'
             else:
                 gpu_str = 'gpu'
