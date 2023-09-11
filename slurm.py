@@ -243,6 +243,9 @@ class Job:
             if self.queue == "" or self.queue == 'gpu':
                 gpu_str = 'gpu'
                 gres_str = '--gres=gpu'
+            elif self.queue == 'nvidia_geforce_rtx_4090':
+                gpu_str = 'minigpu'
+                gres_str = '--gres=gpu:%s' % self.queue
             else:
                 gpu_str = 'gpu'
                 gres_str = '--gres=gpu:%s' % self.queue
@@ -282,7 +285,8 @@ class Job:
             'geforce': 'nvidia_geforce_gtx_1080_ti',
             'gtx1080': 'nvidia_geforce_gtx_1080_ti',
             'titan': 'titan_rtx',
-            'quadro': 'quadro_rtx_8000'
+            'quadro': 'quadro_rtx_8000',
+            'rtx4090': 'nvidia_geforce_rtx_4090'
         }
         return translation.get(queue_gpu, queue_gpu)
 
