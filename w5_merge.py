@@ -74,13 +74,29 @@ def main():
         # summarize
         if options.sum_stat == 'sum':
             out_key_data = in_key_data.sum(axis=0)
+
         elif options.sum_stat == 'mean':
             out_key_data = in_key_data.mean(axis=0)
+
+        elif options.sum_stat == 'geo-mean':
+            in_key_data_log = np.log(in_key_data)
+            in_key_data_log_mean = in_key_data_log.mean(axis=0)
+            out_key_data = np.exp(in_key_data_log_mean)
+
+        elif options.sum_stat == 'sqrt-mean':
+            in_key_data_sqrt = in_key_data**0.5
+            in_key_data_sqrt_mean = in_key_data_sqrt.mean(axis=0)
+            out_key_data = in_key_data_sqrt_mean**2
+            
         else:
             print('Cannot identify summary statistic %s' % options.sum_stat)
 
+        # carefully decrease resolution
+        out_key_data = np.clip(out_key_data, np.finfo(np.float16).min, np.finfo(np.float16).max)
+        out_key_data = out_key_data.astype('float16')
+
         # write
-        out_w5_open.create_dataset(out_key, data=out_key_data.astype('float16'),
+        out_w5_open.create_dataset(out_key, data=out_key_data,
                                    dtype='float16', **compression_args)
 
     out_w5_open.close()
