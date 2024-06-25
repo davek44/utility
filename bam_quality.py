@@ -29,8 +29,8 @@ def main():
         input_bam = args[0]
         output_bam = args[1]
 
-    bam_in = pysam.Samfile(input_bam, 'r')
-    bam_out = pysam.Samfile(output_bam, 'w', template=bam_in)
+    bam_in = pysam.AlignmentFile(input_bam, 'r')
+    bam_out = pysam.AlignmentFile(output_bam, 'wb', template=bam_in)
 
     for align in bam_in:
         if options.mapq_t is None or align.mapping_quality >= options.mapq_t:
