@@ -8,7 +8,7 @@ import numpy as np
 '''
 bg_w5.py
 
-Convert a BedGraph to HDF5.
+Convert a BedGraph w/ overlapping entries to Wig5.
 '''
 
 ################################################################################
@@ -17,9 +17,6 @@ Convert a BedGraph to HDF5.
 def main():
     usage = 'usage: %prog [options] <in_bg_file> <genome_file> <out_h5_file>'
     parser = OptionParser(usage)
-    parser.add_option('--nan0', dest='nan_zero',
-            default=False, action='store_true',
-            help='Convert unobserved NaN to 0 [Default: %default]')
     # parser.add_option('-v', dest='verbose',
     #         default=False, action='store_true')
     (options,args) = parser.parse_args()
@@ -63,15 +60,13 @@ def main():
     # take mean
     for chrm in chrm_values:
         chrm_values[chrm] = np.divide(chrm_values[chrm], chrm_counts[chrm])
-        if options.nan_zero:
-            chrm_values[chrm] = np.nan_to_num(chrm_values[chrm])
+        chrm_values[chrm] = np.nan_to_num(chrm_values[chrm])
 
     # write gzipped into HDF5
     h5_out = h5py.File(hdf5_file, 'w')
     for chrm in chrm_values:
         h5_out.create_dataset(chrm, data=chrm_values[chrm], dtype='float16',
-            compression='gzip', shuffle=options.nan_zero)
-        # shuffle doesn't work with NaN
+            compression='gzip', shuffle=True)
     h5_out.close()
 
 
