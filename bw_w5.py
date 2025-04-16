@@ -8,9 +8,9 @@ import pyBigWig
 import scipy.interpolate
 
 '''
-bw_h5.py
+bw_w5.py
 
-Convert a BigWig to HDF5.
+Convert a BigWig to wigHDF5.
 '''
 
 ################################################################################
@@ -27,9 +27,6 @@ def main():
     parser.add_option('-m', dest='min_norm',
         default=False, action='store_true',
         help='Normalize the minimum nonzero value to 1 [Default: %default]')
-    # parser.add_option('--mode_max', dest='mode_norm_max',
-    #     default=10, type='float',
-    #     help='Maximum norm scale value determined by mode [Default: %default]')
     parser.add_option('-s', dest='scale',
         default=1.0, type='float',
         help='Scale all values (e.g. to undo normalization) [Default: %default]')
@@ -43,15 +40,16 @@ def main():
     if len(args) != 2:
         parser.error('Must provide input BigWig and output HDF5.')
     else:
-        bw_file = args[0]
+        bw_files = args[0]
         hdf5_file = args[1]
 
     # open files
-    bw_in = pyBigWig.open(bw_file)
+    bw_files = bw_files.split(',')
+    bw_ins = [pyBigWig.open(bw_file) for bw_file in bw_files]
     h5_out = h5py.File(hdf5_file, 'w')
 
     # process chromosomes in length order
-    chrom_lengths = bw_in.chroms()
+    chrom_lengths = bw_ins[0].chroms()
     chroms = sorted(chrom_lengths.keys())
     length_chroms = [(chrom_lengths[chrm],chrm) for chrm in chroms]
     length_chroms = sorted(length_chroms)[::-1]
@@ -63,18 +61,19 @@ def main():
             print(chrom)
 
         # read values
-        x = bw_in.values(chrom, 0, chrom_lengths[chrom], numpy=True)
+        x = bw_ins[0].values(chrom, 0, clength, numpy=True)
+        for bw_in in bw_ins[1:]:
+            x += bw_in.values(chrom, 0, clength, numpy=True)
 
         # scale
         if options.scale != 1:
             x = x*options.scale
 
+        # normalize min to 1
+        #  (a simple strategy to undo normalization)
         if options.min_norm:
             if min_factor is None:
                 min_factor = x[x>0].min()
-                # vals, counts = np.unique(x[x>0], return_counts=True)
-                # mode_factor = vals[0]
-                # mode_factor =  np.clip(vals[0], 1/options.mode_norm_max, options.mode_norm_max)
                 print('Min normalization factor: %f' % min_factor, file=sys.stderr)
             x /= min_factor
 
@@ -90,18 +89,19 @@ def main():
 
         # clip float16 min/max
         x = np.clip(x, np.finfo(np.float16).min, np.finfo(np.float16).max)
+        x = x.astype('float16')
 
         # strip "chr"
         if options.chr_strip:
             chrom = chrom.replace('chr','')
 
         # write gzipped into HDF5
-        x = x.astype('float16')
         h5_out.create_dataset(chrom, data=x, dtype='float16', compression='gzip', shuffle=True)
 
     # close files
     h5_out.close()
-    bw_in.close()
+    for bw_in in bw_ins:
+        bw_in.close()
 
 
 def interp_nan(x, kind='linear'):
